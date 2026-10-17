@@ -15,7 +15,8 @@ function sortAndProcessInboxFolder() {
       
       while (files.hasNext()) {
         let f = files.next();
-        if (f.getMimeType() === MimeType.PNG || f.getMimeType() === MimeType.JPEG) {
+        let mime = f.getMimeType();
+        if (mime === MimeType.PNG || mime === MimeType.JPEG || mime.includes("image")) {
           try {
             let cat = classifyScreenshotWithGemini(f);
             if (cat && CONFIG.FOLDER_MAPPINGS[cat]) {
@@ -29,7 +30,7 @@ function sortAndProcessInboxFolder() {
       let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
       
       if (sortedCount > 0) {
-        SpreadsheetApp.getActiveSpreadsheet().toast(`Successfully sorted ${sortedCount} screenshots from Inbox. Moving to process...`, "📥 Inbox Sorted", 4);
+        try { SpreadsheetApp.getActiveSpreadsheet().toast(`Successfully sorted ${sortedCount} screenshots from Inbox. Moving to process...`, "📥 Inbox Sorted", 4); } catch (e) {}
         updateQueueVisualStatus(`✅ Sorted ${sortedCount} files. Processing next folder...`, "#d9ead3");
       } else {
         updateQueueVisualStatus(`👀 Watcher Active - Checked Inbox at ${timeStr}. Checking for folders to process...`, "#e8f0fe"); 
@@ -50,7 +51,7 @@ function sortAndProcessInboxFolder() {
 function classifyScreenshotWithGemini(file) {
   const apiKey = PropertiesService.getScriptProperties().getProperty("GEMINI_API_KEY");
   if (!apiKey) return null;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
   const blob = file.getBlob();
   const payload = {
     contents: [{ parts: [{ text: `Classify this Last War alliance screenshot into ONE: "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Strength Ranking - Power", "Strength Ranking - Donations". Return ONLY the exact string.` }, { inlineData: { mimeType: blob.getContentType() || "image/jpeg", data: Utilities.base64Encode(blob.getBytes()) } }] }],
@@ -59,15 +60,18 @@ function classifyScreenshotWithGemini(file) {
   try {
     let res = UrlFetchApp.fetch(url, { method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true });
     let json = JSON.parse(res.getContentText());
-    let cat = json.candidates[0].content.parts[0].text.trim();
-    if (CONFIG.FOLDER_MAPPINGS[cat]) return cat;
+    if (json.candidates && json.candidates[0] && json.candidates[0].content) {
+      let cat = json.candidates[0].content.parts[0].text.trim().replace(/^["']|["']$/g, "");
+      if (CONFIG.FOLDER_MAPPINGS[cat]) return cat;
+    }
   } catch (e) {}
   return null;
 }
 
 function processNextAvailableFolder() {
   const potentialFolders = ["Strength Ranking - Power", "Strength Ranking - Donations", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  let debugSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Debug Log") || SpreadsheetApp.getActiveSpreadsheet().insertSheet("Debug Log");
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let debugSheet = ss.getSheetByName("Debug Log") || ss.insertSheet("Debug Log");
   
   let targetCategory = null;
   
@@ -100,7 +104,7 @@ function processNextAvailableFolder() {
   
   let statusText = `⚡ Processing Folder: ${targetCategory}`;
   updateQueueVisualStatus(statusText, "#fff2cc");
-  SpreadsheetApp.getActiveSpreadsheet().toast(statusText, "🔄 Processing Next Folder", 5);
+  try { ss.toast(statusText, "🔄 Processing Next Folder", 5); } catch (e) {}
   debugSheet.appendRow([new Date(), `Processing next available folder: "${targetCategory}"`]);
   
   try {
@@ -115,7 +119,7 @@ function processNextAvailableFolder() {
   } catch (err) {
     debugSheet.appendRow([new Date(), `CRITICAL ERROR / TIMEOUT on "${targetCategory}": ` + err.message]);
     updateQueueVisualStatus("⚠️ Interrupted/Timed Out. Run again to resume.", "#f4cccc");
-    SpreadsheetApp.getActiveSpreadsheet().toast(`Processing interrupted on "${targetCategory}". Click 'Process Next Folder' again to resume remaining files.`, "⚠️ Interrupted", 10);
+    try { ss.toast(`Processing interrupted on "${targetCategory}". Click 'Process Next Folder' again to resume remaining files.`, "⚠️ Interrupted", 10); } catch (e) {}
   }
 }
 
@@ -138,9 +142,14 @@ function processFolderDirectly(headingLabelsArray, returnStats = false, ignoreRa
     }
   } catch(e) {}
   
+  // Strip any previous divider rows before starting import
+  if (typeof cleanAndSortRoster === "function") {
+    cleanAndSortRoster(sheet);
+  }
+  
   let startRange = findRosterRange(sheet);
   if (startRange && startRange.rowCount > 1) {
-    let headers = sheet.getRange(startRange.startRow, 1, 1, startRange.colCount).getValues().map(h => h.toString().trim().toLowerCase());
+    let headers = sheet.getRange(startRange.startRow, 1, 1, startRange.colCount).getValues()[0].map(h => h.toString().trim().toLowerCase());
     let nIdx = headers.findIndex(h => h.includes("member"));
     if (nIdx === -1) nIdx = 1;
     sheet.getRange(startRange.startRow + 1, nIdx + 1, startRange.rowCount - 1, 1).setBackground(null);
@@ -165,7 +174,8 @@ function processFolderDirectly(headingLabelsArray, returnStats = false, ignoreRa
     let folderFiles = [];
     while (files.hasNext()) {
       let f = files.next();
-      if (f.getMimeType() === MimeType.PNG || f.getMimeType() === MimeType.JPEG) folderFiles.push(f);
+      let mime = f.getMimeType();
+      if (mime === MimeType.PNG || mime === MimeType.JPEG || mime.includes("image")) folderFiles.push(f);
     }
     
     if (folderFiles.length === 0) continue;
@@ -194,7 +204,7 @@ function processFolderDirectly(headingLabelsArray, returnStats = false, ignoreRa
     let sheetData = sheet.getRange(rosterRange.startRow, 1, rosterRange.rowCount, rosterRange.colCount).getValues();
     const headers = sheetData[0].map(h => h.toString().trim().toLowerCase());
     
-    let nameColIdx = headers.indexOf("member");
+    let nameColIdx = headers.findIndex(h => h.includes("member"));
     if (nameColIdx === -1) nameColIdx = 1; 
     let rankColIdx = headers.indexOf("rank");
     
@@ -210,7 +220,7 @@ function processFolderDirectly(headingLabelsArray, returnStats = false, ignoreRa
       if (Date.now() - START_TIME > MAX_RUNTIME_MS) {
         timeoutTriggered = true;
         updateQueueVisualStatus("⚠️ Interrupted/Timed Out. Run again to resume.", "#f4cccc");
-        ss.toast("Nearing Google's execution limit. Saving current progress...", "⏳ Graceful Pause", 8);
+        try { ss.toast("Nearing Google's execution limit. Saving current progress...", "⏳ Graceful Pause", 8); } catch (e) {}
         debugSheet.appendRow([new Date(), `⚠️ Graceful Exit Triggered: Hit 3.5m limit on file ${fIdx + 1}`]);
         break; 
       }
@@ -281,8 +291,8 @@ function processFolderDirectly(headingLabelsArray, returnStats = false, ignoreRa
         if (matchedRowIdx === -1 && candidateBase.length >= 3) {
           for (let r = 0; r < rosterNames.length; r++) {
             let ro = rosterNames[r];
-            let candCore = candidateBase.replace(/[a-d][a-b]?\$/i, "");
-            let roCore = ro.baseName.replace(/[a-d][a-b]?\$/i, "");
+            let candCore = candidateBase.replace(/[a-d][a-b]?$/i, "");
+            let roCore = ro.baseName.replace(/[a-d][a-b]?$/i, "");
             if (candCore.length >= 3 && candCore === roCore) {
               matchedRowIdx = ro.index; break;
             }
@@ -350,6 +360,7 @@ function processFolderDirectly(headingLabelsArray, returnStats = false, ignoreRa
         let addedRowsBatch = sheetData.slice(rosterRange.rowCount);
         let insertRow = rosterRange.startRow + rosterRange.rowCount;
         sheet.getRange(insertRow, 1, addedRowsBatch.length, addedRowsBatch[0].length).setValues(addedRowsBatch);
+        rosterRange.rowCount = sheetData.length;
       }
       
       paintBatchFormatting(sheet, sheetData, nameColIdx, metricColIdx, rankColIdx, cumulativeFlaggedRows, cumulativeMatchedRows, cumulativeUpdatedRows, isStrengthRanking, [], cumulativeVerificationLogs, [], currentLabel);
@@ -378,10 +389,10 @@ function processFolderDirectly(headingLabelsArray, returnStats = false, ignoreRa
       
       for (let r = 1; r < finalSheetData.length; r++) {
         let memberName = finalSheetData[r][nIdx] ? finalSheetData[r][nIdx].toString().trim() : "";
-        if (!memberName || memberName.startsWith("⚠️")) continue;
+        if (!memberName || memberName.startsWith("⚠️") || memberName.startsWith("---")) continue;
         
         let note = finalRosterNotes[r] ? finalRosterNotes[r][0].toLowerCase() : "";
-        let isExempt = note.includes("exempt") || note.includes("vacation") || note.includes("loa") || note.includes("personal");
+        let isExempt = isExemptNote(note);
         let scoreCell = (metricValues[r - 1]) ? metricValues[r - 1][0] : "";
         
         let isNew = addedNamesList.some(an => normalizeString(an) === normalizeString(memberName));
@@ -419,6 +430,10 @@ function processFolderDirectly(headingLabelsArray, returnStats = false, ignoreRa
         sheet.getRange(finalRosterRange.startRow + 1, 1, finalRosterRange.rowCount - 1, sortCol).sort(sortCol);
         sheet.getRange(finalRosterRange.startRow + 1, sortCol, finalRosterRange.rowCount - 1, 1).clearContent();
         
+        if (typeof deleteExtraColumns === "function") {
+          deleteExtraColumns(sheet);
+        }
+        
         let sortedNames = sheet.getRange(finalRosterRange.startRow + 1, nIdx + 1, finalRosterRange.rowCount - 1, 1).getValues();
         let firstMissingRow = -1;
         let firstNewRow = -1;
@@ -446,14 +461,16 @@ function processFolderDirectly(headingLabelsArray, returnStats = false, ignoreRa
   }
   
   if (!returnStats && headingLabelsArray.length === 1) {
-    let ui = SpreadsheetApp.getUi();
-    if (timeoutTriggered) {
-      ui.alert("⚠️ Batch Paused", `Processed ${totalProcessedFiles} screenshots for "${headingLabelsArray}".\n\nGoogle limits scripts to 6 minutes. The script gracefully paused to save your progress. Run again from the menu to resume!`, ui.ButtonSet.OK);
-    } else {
-      ui.alert("✅ Import Complete", `Successfully processed "${headingLabelsArray}". Unmatched and New members have been grouped for your review. Use "Verify & Restore Roster Order" to return to normal!`, ui.ButtonSet.OK);
-    }
+    try {
+      let ui = SpreadsheetApp.getUi();
+      if (timeoutTriggered) {
+        ui.alert("⚠️ Batch Paused", `Processed ${totalProcessedFiles} screenshots for "${headingLabelsArray[0]}".\n\nGoogle limits scripts to 6 minutes. The script gracefully paused to save your progress. Run again from the menu to resume!`, ui.ButtonSet.OK);
+      } else {
+        ui.alert("✅ Import Complete", `Successfully processed "${headingLabelsArray[0]}". Unmatched and New members have been grouped for your review. Use "Verify & Restore Roster Order" to return to normal!`, ui.ButtonSet.OK);
+      }
+    } catch (e) {}
   } else if (!returnStats && timeoutTriggered) {
-      SpreadsheetApp.getActiveSpreadsheet().toast(`Batch paused early due to time limits. Run again to resume!`, "⚠️ Paused", 8);
+    try { SpreadsheetApp.getActiveSpreadsheet().toast(`Batch paused early due to time limits. Run again to resume!`, "⚠️ Paused", 8); } catch (e) {}
   }
   
   return { processedFiles: totalProcessedFiles, matched: batchUniqueMatched.size, appended: batchAppended, timedOut: timeoutTriggered };
@@ -496,9 +513,9 @@ function rollbackLastImport() {
 
 function parseLeaderboardWithGemini(file, currentLabel) {
   const apiKey = PropertiesService.getScriptProperties().getProperty("GEMINI_API_KEY");
-  if (!apiKey) throw new Error("GEMINI_API_KEY missing.");
+  if (!apiKey) throw new Error("GEMINI_API_KEY missing in Script Properties.");
   
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
   const blob = file.getBlob();
   const payload = {
     contents: [{ parts: [{ text: `Analyze this Last War mobile game alliance leaderboard screenshot (${currentLabel}). Extract every commander/player name, their rank (if visible, e.g. R1, R2, R3, R4, R5), and their point score or metric value. Return ONLY a valid JSON array of objects with keys: 'rank', 'name', 'score'. No markdown.` }, { inlineData: { mimeType: blob.getContentType() || "image/jpeg", data: Utilities.base64Encode(blob.getBytes()) } }] }],
@@ -507,6 +524,10 @@ function parseLeaderboardWithGemini(file, currentLabel) {
   
   let res = UrlFetchApp.fetch(url, { method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true });
   let json = JSON.parse(res.getContentText());
+  
+  if (!json.candidates || !json.candidates[0] || !json.candidates[0].content) {
+    throw new Error(json.error ? json.error.message : "Empty response from Gemini API");
+  }
   
   let rawText = json.candidates[0].content.parts[0].text.trim();
   let match = rawText.match(/\[.*\]/s);
@@ -554,10 +575,12 @@ function restoreProcessedScreenshots() {
 function handleDropdownRestoration(choice) {
   let master;
   try { master = DriveApp.getFolderById(CONFIG.PROCESSED_FOLDER_ID); } catch(e) { return; }
-  let keys = Object.keys(CONFIG.PROCESSED_SUBFOLDER_NAMES);
+  let keys = (choice && choice !== "ALL") ? [choice] : Object.keys(CONFIG.PROCESSED_SUBFOLDER_NAMES);
   let restored = 0;
   keys.forEach(k => {
-    let sub = master.getFoldersByName(CONFIG.PROCESSED_SUBFOLDER_NAMES[k]);
+    let subName = CONFIG.PROCESSED_SUBFOLDER_NAMES[k];
+    if (!subName) return;
+    let sub = master.getFoldersByName(subName);
     if (sub.hasNext()) {
       let files = sub.next().getFiles();
       let target = DriveApp.getFolderById(CONFIG.FOLDER_MAPPINGS[k]);
