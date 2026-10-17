@@ -5,6 +5,7 @@
 
 const GITHUB_CONFIG = {
   BRANCH: "main",
+  PARENT_FOLDER_ID: "1EPv32fFEozthlMsQx1DcEUpmpL4pakEf", // <-- Paste your folder ID here (leave blank "" if you want it back on root)
   DRIVE_MIRROR_FOLDER_NAME: "TWST Codebase Mirror",
   MASTER_FILE_NAME: "TWST_Master_Codebase.txt",
   COMMIT_AUTHOR: {
