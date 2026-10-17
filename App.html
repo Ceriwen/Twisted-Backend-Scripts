@@ -6,8 +6,11 @@
   <title>TWST Command Center</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-950 text-slate-200 font-sans antialiased p-4 min-h-screen">
+<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen p-4 sm:p-6 w-full mx-auto">
+
   <div class="max-w-5xl mx-auto space-y-6">
+    
+    <!-- Top Header & Toggle -->
     <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 border-b border-slate-800 gap-3">
       <div>
         <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-blue-400">
@@ -15,18 +18,29 @@
         </h1>
         <p class="text-xs text-slate-400">Roster Management & Automation Hub</p>
       </div>
-      <div class="flex items-center gap-4">
-        <button onclick="toggleAdmin()" class="text-xs text-slate-500 hover:text-slate-300 font-medium">
+      
+      <div class="flex flex-col sm:flex-row items-end sm:items-center gap-4">
+        <button onclick="toggleAdmin()" class="text-xs text-slate-500 hover:text-slate-300 font-medium transition-colors">
           🔒 Leadership Unlock
         </button>
-        <div id="status-badge" class="flex items-center gap-2 px-3 py-1 bg-emerald-950/60 border border-emerald-700/60 text-emerald-400 text-xs font-semibold rounded-full">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-          <span>Live Data</span>
+        
+        <!-- RESTORED: Time Machine Toggle -->
+        <div class="flex items-center gap-3">
+          <div class="flex bg-slate-900 border border-slate-700 rounded-lg p-1">
+            <button id="btn-current" onclick="switchView(false)" class="px-3 py-1 text-xs font-bold rounded bg-blue-600 text-white shadow transition-colors">Current</button>
+            <button id="btn-archive" onclick="switchView(true)" class="px-3 py-1 text-xs font-bold rounded text-slate-400 hover:text-slate-200 transition-colors">Archive</button>
+          </div>
+          
+          <div id="status-badge" class="flex items-center gap-2 px-3 py-1 bg-slate-900 border border-slate-700 text-slate-300 text-xs font-semibold rounded-full min-w-[110px] justify-center transition-colors">
+            <span id="status-badge-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            <span id="status-badge-text">Live Data</span>
+          </div>
         </div>
       </div>
     </header>
 
-    <section id="admin-login" class="hidden bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg text-center">
+    <!-- Admin Unlock Panel -->
+    <section id="admin-login" class="hidden bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg text-center border-l-4 border-l-blue-500">
       <p class="text-xs text-slate-400 mb-2">Enter R4/R5 Password to reveal upload tools</p>
       <div class="flex justify-center gap-2 max-w-sm mx-auto">
         <input type="password" id="admin-pass" placeholder="Password" class="w-full bg-slate-950 border border-slate-700 text-slate-300 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500">
@@ -34,11 +48,12 @@
       </div>
     </section>
 
+    <!-- Leadership Controls -->
     <div id="leadership-controls" class="hidden space-y-6">
-      <section class="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-lg border-l-4 border-l-blue-500">
-        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Data Uploads</h2>
+      <section class="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-lg border-l-4 border-l-emerald-500">
+        <h2 class="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-3">Data Uploads</h2>
         <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-          <input type="file" id="file-input" multiple accept="image/*" class="w-full sm:w-auto text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-900/30 file:text-blue-400 hover:file:bg-blue-900/50 cursor-pointer"/>
+          <input type="file" id="file-input" multiple accept="image/*" class="w-full sm:w-auto text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-900/30 file:text-emerald-400 hover:file:bg-emerald-900/50 cursor-pointer transition-colors"/>
           <button id="btn-upload" onclick="handleFileUpload()" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold py-2 px-5 rounded-lg shadow-md transition duration-150 flex items-center justify-center gap-2 text-sm whitespace-nowrap">
             <span>📤</span> Upload to Inbox
           </button>
@@ -60,54 +75,99 @@
       </section>
     </div>
 
-    <section>
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Alliance Overview</h2>
-        <span class="text-[11px] text-slate-500">Live Metrics</span>
+    <!-- Alliance Rules Section -->
+    <section class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+      <div class="p-4 border-b border-slate-800 bg-slate-950">
+        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">📋 TWST Target Thresholds & Policy Rules</h2>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-md">
-          <p class="text-xs font-semibold text-slate-400 uppercase">Total Alliance Power</p>
-          <p id="stat-power" class="text-3xl font-black text-white mt-2">...</p>
+      <div class="p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 text-sm">
+        <div>
+          <h3 class="font-bold text-blue-400 mb-1">🎯 Daily Targets</h3>
+          <p class="text-slate-300 mb-2"><strong class="text-white">3,600,000 VS Pts/Day</strong><br><span class="text-xs text-slate-400">Mandatory daily target. Under 3.6M marks a missed day.</span></p>
+          <p class="text-slate-300"><strong class="text-white">3,000 Tech Pts</strong><br><span class="text-xs text-slate-400">Mandatory daily alliance donation target.</span></p>
         </div>
-        <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-md">
-          <p class="text-xs font-semibold text-slate-400 uppercase">Active Roster Size</p>
-          <p id="stat-members" class="text-3xl font-black text-blue-400 mt-2">...</p>
+        <div>
+          <h3 class="font-bold text-emerald-400 mb-1">🌟 Top Performance</h3>
+          <p class="text-slate-300 mb-2"><strong class="text-white">🔥 Crushed It!:</strong> 7.2M VS pts & 6k tech (Double target).</p>
+          <p class="text-slate-300"><strong class="text-white">🌟 Perfect:</strong> 0 Missed Days (All days ≥ 3.6M and donations met).</p>
         </div>
-        <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-md">
-          <p class="text-xs font-semibold text-slate-400 uppercase">Avg Weekly Duel Score</p>
-          <p id="stat-duel" class="text-3xl font-black text-emerald-400 mt-2">...</p>
+        <div>
+          <h3 class="font-bold text-amber-400 mb-1">🛡️ Rank Standing</h3>
+          <p class="text-slate-300 mb-2"><strong class="text-white">Maintained:</strong> < 3 Missed Days. Allows 1-2 missed targets.</p>
+          <p class="text-slate-300"><strong class="text-white">⬆️ Promotion:</strong> R1/R2 restored to R3 upon hitting performance goals.</p>
+        </div>
+        <div>
+          <h3 class="font-bold text-red-400 mb-1">⚠️ Penalties</h3>
+          <p class="text-slate-300"><strong class="text-white">Demotion Threshold:</strong> ≥ 3 Missed Targets. Failing daily VS and/or Donations on 3+ days triggers automated demotion or removal.</p>
         </div>
       </div>
     </section>
 
-    <section class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
-      <div class="p-4 sm:p-5 border-b border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+    <!-- RESTORED: High-Level Alliance Overview (5 KPIs) -->
+    <section class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+      <div class="p-4 border-b border-slate-800 bg-slate-950 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Alliance Roster Directory</h2>
-          <p class="text-[11px] text-slate-500 mt-0.5">Tap any member row to expand full daily breakdown</p>
-        </div>
-        <div class="relative w-full sm:w-64">
-          <input type="text" id="search-input" onkeyup="filterRoster()" placeholder="Search name, rank, status..." class="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-lg pl-3 pr-3 py-2 focus:outline-none focus:border-blue-500"/>
+          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">📈 Key Performance Indicators</h2>
+          <p class="text-[11px] text-slate-500 mt-0.5">Core performance and roster capacity metrics.</p>
         </div>
       </div>
-      <div id="roster-container" class="p-8 text-center text-slate-400 text-sm">
-        Synchronizing roster database...
+      <div class="p-5">
+        <div id="overview-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+          <!-- Rendered via JS -->
+        </div>
       </div>
     </section>
+
+    <!-- RESTORED: Roster Snapshot & Filters Section -->
+    <section class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+      <div class="p-4 border-b border-slate-800 bg-slate-950 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div>
+          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">🗂️ Roster Snapshot & Filters</h2>
+          <p class="text-[11px] text-slate-500 mt-0.5">Click any of the highlighted tag boxes below to filter the roster list instantly.</p>
+        </div>
+      </div>
+      <div class="p-5">
+        <div id="filter-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Member Roster Section -->
+    <section class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+      <div class="p-4 border-b border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div>
+          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Alliance Roster</h2>
+          <p class="text-[11px] text-slate-500 mt-0.5">Tap any row to expand details.</p>
+        </div>
+        <div class="flex gap-2 w-full sm:w-auto">
+          <input type="text" id="search-input" onkeyup="filterRoster()" placeholder="Search name, rank, or tag..." class="w-full sm:w-64 bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"/>
+          <button onclick="clearFilters()" class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 border border-slate-700 text-slate-300 font-medium text-xs rounded-lg px-4 py-2 transition-colors">Reset</button>
+        </div>
+      </div>
+      <div id="roster-container" class="p-6 text-center">
+        <span class="text-slate-400 text-sm font-medium">Fetching spreadsheet data...</span>
+      </div>
+    </section>
+
   </div>
 
   <script>
     let rawMembers = [];
+    let currentStats = {};
+    let currentTagFilter = "";
     let activePassword = "";
+    let showingArchive = false; 
 
+    // Auto-load archive parameter
     const autoLoadArchive = <?= forceArchive ?>;
 
     window.addEventListener('DOMContentLoaded', () => {
       if (autoLoadArchive) {
-        document.getElementById('status-badge').innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400"></span><span>Archived Data (Last Week)</span>';
+        switchView(true);
+      } else {
+        fetchRosterData();
       }
-      fetchRosterData();
     });
 
     function toggleAdmin() {
@@ -124,54 +184,32 @@
       }
     }
 
-    function fetchRosterData() {
-      google.script.run
-        .withSuccessHandler(renderDashboard)
-        .withFailureHandler(showError)
-        .getDashboardData(autoLoadArchive);
-    }
-
-    function renderDashboard(payload) {
-      document.getElementById('stat-power').textContent = payload.stats.totalPower;
-      document.getElementById('stat-members').textContent = payload.stats.activeMembers;
-      document.getElementById('stat-duel').textContent = payload.stats.avgWeekly || "-";
-      rawMembers = payload.members || [];
-      renderTable(rawMembers);
-    }
-
-    function renderTable(list) {
-      const container = document.getElementById('roster-container');
-      if (list.length === 0) return container.innerHTML = '<p class="text-slate-400 text-sm py-4">No data.</p>';
+    function switchView(toArchive) {
+      if (showingArchive === toArchive) return;
+      showingArchive = toArchive;
       
-      let rowsHtml = list.map(m => `
-        <tr onclick="toggleDetails('${m.id}')" class="border-b border-slate-800/80 hover:bg-slate-800/40 cursor-pointer">
-          <td class="py-3 px-4 font-bold text-slate-300">${m.rank}</td>
-          <td class="py-3 px-4 font-semibold text-white">${m.name}</td>
-          <td class="py-3 px-4 text-right font-mono text-slate-300">${m.power}</td>
-          <td class="py-3 px-4 text-right font-mono text-blue-400 font-semibold">${m.weekly}</td>
-          <td class="py-3 px-4 hidden sm:table-cell"><span class="px-2 py-0.5 rounded text-[11px] font-medium border bg-slate-800 text-slate-300 border-slate-700">${m.reason}</span></td>
-        </tr>
-        <tr id="details-${m.id}" class="hidden bg-slate-950/70 border-b border-slate-800">
-          <td colspan="5" class="p-4"><div class="text-xs text-slate-300">Mon: ${m.mon} | Tue: ${m.tue} | Wed: ${m.wed} | Thu: ${m.thu} | Fri: ${m.fri} | Sat: ${m.sat} | Donations: ${m.donations} | New Target: ${m.newRank}</div></td>
-        </tr>
-      `).join('');
-      
-      container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-left text-xs sm:text-sm"><thead class="bg-slate-950 text-slate-400 uppercase text-[10px] sm:text-xs border-b border-slate-800"><tr><th class="py-3 px-4">Rank</th><th class="py-3 px-4">Member</th><th class="py-3 px-4 text-right">Power</th><th class="py-3 px-4 text-right">Weekly Duel</th><th class="py-3 px-4 hidden sm:table-cell">Audit Status</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
-    }
+      const btnCurrent = document.getElementById('btn-current');
+      const btnArchive = document.getElementById('btn-archive');
+      const badge = document.getElementById('status-badge');
+      const badgeDot = document.getElementById('status-badge-dot');
+      const badgeText = document.getElementById('status-badge-text');
 
-    function toggleDetails(id) {
-      const row = document.getElementById(`details-${id}`);
-      if (row) row.classList.toggle('hidden');
-    }
+      if (toArchive) {
+        btnArchive.className = "px-3 py-1 text-xs font-bold rounded bg-emerald-600 text-white shadow transition-colors";
+        btnCurrent.className = "px-3 py-1 text-xs font-bold rounded text-slate-400 hover:text-slate-200 transition-colors";
+        badge.className = "flex items-center gap-2 px-3 py-1 bg-emerald-950/40 border border-emerald-800/60 text-emerald-500 text-xs font-semibold rounded-full min-w-[110px] justify-center transition-colors";
+        badgeDot.className = "w-2 h-2 rounded-full bg-emerald-500"; 
+        badgeText.textContent = "Archived Data";
+      } else {
+        btnCurrent.className = "px-3 py-1 text-xs font-bold rounded bg-blue-600 text-white shadow transition-colors";
+        btnArchive.className = "px-3 py-1 text-xs font-bold rounded text-slate-400 hover:text-slate-200 transition-colors";
+        badge.className = "flex items-center gap-2 px-3 py-1 bg-slate-900 border border-slate-700 text-slate-300 text-xs font-semibold rounded-full min-w-[110px] justify-center transition-colors";
+        badgeDot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-ping";
+        badgeText.textContent = "Live Data";
+      }
 
-    function filterRoster() {
-      const q = document.getElementById('search-input').value.toLowerCase().trim();
-      const filtered = rawMembers.filter(m => 
-        m.name.toLowerCase().includes(q) || 
-        m.rank.toLowerCase().includes(q) || 
-        m.reason.toLowerCase().includes(q)
-      );
-      renderTable(filtered);
+      clearFilters(); 
+      fetchRosterData();
     }
 
     function triggerAIBatch() {
@@ -198,63 +236,240 @@
     async function handleFileUpload() {
       const fileInput = document.getElementById('file-input');
       const btn = document.getElementById('btn-upload');
-      const statusBox = document.getElementById('upload-status');
-      
+
       if (!fileInput.files || fileInput.files.length === 0) return;
-      
-      btn.disabled = true; btn.innerHTML = '<span>⏳</span> Uploading...';
-      statusBox.className = "mt-3 p-3 text-xs rounded-lg bg-blue-950/60 border border-blue-800 text-blue-300 block";
-      statusBox.textContent = `Reading ${fileInput.files.length} file(s)...`;
-      
+
+      btn.disabled = true; btn.innerHTML = '<span>⏳</span> Preparing...';
       const filesData = [];
       try {
-        for (let i = 0; i < fileInput.files.length; i++) {
-          let file = fileInput.files[i];
-          let base64 = await readFileAsBase64(file);
-          filesData.push({
-            name: file.name,
-            mimeType: file.type,
-            data: base64.split(',')[1]
-          });
+        for (let file of fileInput.files) {
+          const reader = new FileReader();
+          const data = await new Promise(res => { reader.onload = () => res(reader.result); reader.readAsDataURL(file); });
+          filesData.push({ name: file.name, mimeType: file.type, data: data.split(',')[1] });
         }
-      } catch (err) {
-        btn.disabled = false; btn.innerHTML = '<span>📤</span> Upload to Inbox';
-        statusBox.className = "mt-3 p-3 text-xs rounded-lg bg-red-950/60 border border-red-800 text-red-300 block";
-        statusBox.textContent = "Error reading files.";
-        return;
-      }
-      
+      } catch (err) { return showUploadStatus("Read error.", "red"); }
+
+      btn.innerHTML = '<span>⏳</span> Uploading...';
       google.script.run
         .withSuccessHandler(res => {
           btn.disabled = false; btn.innerHTML = '<span>📤</span> Upload to Inbox';
-          if (res.success) {
-            statusBox.className = "mt-3 p-3 text-xs rounded-lg bg-emerald-950/60 border border-emerald-800 text-emerald-300 block";
-            statusBox.textContent = `Successfully uploaded ${res.count} screenshot(s) to Inbox!`;
-            fileInput.value = '';
+          if (res.success) { 
+            showUploadStatus(`Successfully uploaded ${res.count} screenshots!`, "emerald"); 
+            fileInput.value = ''; 
           } else {
-            statusBox.className = "mt-3 p-3 text-xs rounded-lg bg-red-950/60 border border-red-800 text-red-300 block";
-            statusBox.textContent = "Upload failed: " + res.error;
+            showUploadStatus(res.error, "red");
           }
         })
         .withFailureHandler(err => {
           btn.disabled = false; btn.innerHTML = '<span>📤</span> Upload to Inbox';
-          statusBox.className = "mt-3 p-3 text-xs rounded-lg bg-red-950/60 border border-red-800 text-red-300 block";
-          statusBox.textContent = "Server error: " + err.message;
-        })
-        .uploadFilesToDrive(filesData, activePassword);
+          showUploadStatus(err.message, "red");
+        }).uploadFilesToDrive(filesData, activePassword); 
     }
 
-    function readFileAsBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
-        reader.readAsDataURL(file);
+    function fetchRosterData() {
+      document.getElementById('roster-container').innerHTML = '<p class="text-slate-400 text-sm py-4">Fetching spreadsheet data...</p>';
+      google.script.run
+        .withSuccessHandler(renderDashboard)
+        .withFailureHandler(showError)
+        .getDashboardData(showingArchive); 
+    }
+
+    function renderDashboard(payload) {
+      rawMembers = payload.members || [];
+      currentStats = payload.stats || {};
+      renderOverview();
+      renderFilterGrid();
+      filterRoster();
+    }
+
+    function renderOverview() {
+      let compliantCount = 0;
+      let totalMembers = rawMembers.length;
+      let totalWeekly = 0;
+      let totalDonations = 0;
+      let totalPower = 0;
+      
+      const parseNum = (val) => parseFloat(String(val).replace(/[^0-9.-]+/g, "")) || 0;
+
+      rawMembers.forEach(m => {
+        const r = String(m.reason || "");
+        if (!r.includes("[Demotion]") && !r.includes("[Removal]")) {
+          compliantCount++;
+        }
+        totalWeekly += parseNum(m.weekly);
+        totalDonations += parseNum(m.donations);
+        totalPower += parseNum(m.power);
       });
+
+      const formatSuffix = (num) => {
+        if (num >= 1000000000) return (num / 1000000000).toFixed(2) + "B";
+        if (num >= 1000000) return (num / 1000000).toFixed(2) + "M";
+        if (num >= 1000) return (num / 1000).toFixed(1) + "K";
+        return num.toLocaleString();
+      };
+
+      const healthPct = totalMembers > 0 ? Math.round((compliantCount / totalMembers) * 100) : 0;
+      const healthColor = healthPct >= 90 ? "text-emerald-400" : (healthPct >= 75 ? "text-amber-400" : "text-red-400");
+      const capacitySubtext = totalMembers >= 100 ? "100% Full Capacity" : "Recruiting";
+
+      document.getElementById('overview-grid').innerHTML = `
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow flex flex-col justify-center items-center sm:items-start text-center sm:text-left">
+          <p class="text-[11px] text-slate-400 uppercase tracking-wide font-bold mb-1">Alliance Health</p>
+          <p class="text-2xl font-black ${healthColor}">${healthPct}%</p>
+          <span class="block text-[10px] text-slate-500 mt-1">${healthPct}% Compliant</span>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow flex flex-col justify-center items-center sm:items-start text-center sm:text-left">
+          <p class="text-[11px] text-slate-400 uppercase tracking-wide font-bold mb-1">Roster Capacity</p>
+          <p class="text-2xl font-black text-blue-400">${totalMembers} / 100</p>
+          <span class="block text-[10px] text-slate-500 mt-1">${capacitySubtext}</span>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow flex flex-col justify-center items-center sm:items-start text-center sm:text-left">
+          <p class="text-[11px] text-slate-400 uppercase tracking-wide font-bold mb-1">Total Power</p>
+          <p class="text-2xl font-black text-white">${formatSuffix(totalPower)}</p>
+          <span class="block text-[10px] text-slate-500 mt-1">Active Combat Power</span>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow flex flex-col justify-center items-center sm:items-start text-center sm:text-left">
+          <p class="text-[11px] text-slate-400 uppercase tracking-wide font-bold mb-1">Weekly VS Score</p>
+          <p class="text-2xl font-black text-purple-400">${formatSuffix(totalWeekly)}</p>
+          <span class="block text-[10px] text-slate-500 mt-1">Current Week Total</span>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow flex flex-col justify-center items-center sm:items-start text-center sm:text-left">
+          <p class="text-[11px] text-slate-400 uppercase tracking-wide font-bold mb-1">Alliance Donations</p>
+          <p class="text-2xl font-black text-amber-400">${formatSuffix(totalDonations)}</p>
+          <span class="block text-[10px] text-slate-500 mt-1">Alliance Tech Total</span>
+        </div>
+      `;
     }
 
-    function showError(err) {
-      document.getElementById('roster-container').innerHTML = `<p class="text-red-400 text-sm py-4">Error loading roster: ${err.message}</p>`;
+    function setTagFilter(tag) {
+      if (currentTagFilter === tag) {
+        currentTagFilter = ""; 
+      } else {
+        currentTagFilter = tag; 
+        document.getElementById('search-input').value = ""; 
+      }
+      renderFilterGrid();
+      filterRoster();
+    }
+
+    function clearFilters() {
+      currentTagFilter = "";
+      document.getElementById('search-input').value = "";
+      renderFilterGrid();
+      filterRoster();
+    }
+
+    function renderFilterGrid() {
+      let counts = { crushed: 0, perfect: 0, promo: 0, maint: 0, new: 0, exempt: 0, demo: 0, removal: 0 };
+      rawMembers.forEach(m => {
+        const r = String(m.reason || "");
+        if (r.includes("[Crushed It!]")) counts.crushed++;
+        if (r.includes("[Perfect]")) counts.perfect++;
+        if (r.includes("[Promotion]")) counts.promo++;
+        if (r.includes("[Maintained]")) counts.maint++;
+        if (r.includes("[New Member]")) counts.new++;
+        if (r.includes("[Exempt]")) counts.exempt++;
+        if (r.includes("[Demotion]")) counts.demo++;
+        if (r.includes("[Removal]")) counts.removal++;
+      });
+
+      const makeBox = (label, value, textColor, borderColor, filterTag) => {
+        const isActive = currentTagFilter === filterTag;
+        const bgClass = isActive ? 'bg-slate-800 ring-2 ring-blue-500 shadow-lg' : 'bg-slate-900/50';
+        
+        return `
+          <div onclick="setTagFilter('${filterTag}')" class="${bgClass} cursor-pointer hover:bg-slate-800 hover:-translate-y-0.5 border ${borderColor} p-3 rounded-xl shadow text-center sm:text-left flex flex-col justify-center items-center sm:items-start min-h-[85px] transition-all duration-200">
+            <p class="text-[11px] text-slate-400 uppercase tracking-wide font-semibold mb-1">${label}</p>
+            <p class="text-xl font-black ${textColor}">${value}</p>
+            <span class="block text-[9px] text-slate-500 font-medium normal-case tracking-normal mt-1 opacity-60">👆 Click to filter</span>
+          </div>
+        `;
+      };
+
+      document.getElementById('filter-grid').innerHTML = `
+        ${makeBox("🔥 Crushed It", counts.crushed, "text-amber-400", "border-amber-900/50", "[Crushed It!]")}
+        ${makeBox("🌟 Perfect", counts.perfect, "text-purple-400", "border-purple-900/50", "[Perfect]")}
+        ${makeBox("⬆️ Promoted", counts.promo, "text-emerald-400", "border-emerald-900/50", "[Promotion]")}
+        ${makeBox("🛡️ Maintained", counts.maint, "text-blue-400", "border-blue-900/50", "[Maintained]")}
+        ${makeBox("👋 New Member", counts.new, "text-blue-400", "border-blue-900/50", "[New Member]")}
+        ${makeBox("⏸️ Exempt", counts.exempt, "text-blue-400", "border-blue-900/50", "[Exempt]")}
+        ${makeBox("⚠️ Demotion", counts.demo, "text-red-400", "border-red-900/50", "[Demotion]")}
+        ${makeBox("⛔ Removal", counts.removal, "text-red-500", "border-red-900/50 border-b-2 border-b-red-600", "[Removal]")}
+      `;
+    }
+
+    function getTagStyle(reason) {
+      if (!reason) return "bg-slate-800 text-slate-300 border-slate-700";
+      if (reason.includes("[Crushed It!]")) return "bg-amber-900/40 text-amber-400 border-amber-700/50";
+      if (reason.includes("[Perfect]")) return "bg-purple-900/40 text-purple-400 border-purple-700/50";
+      if (reason.includes("[Promotion]")) return "bg-emerald-900/40 text-emerald-400 border-emerald-700/50";
+      if (reason.includes("[Maintained]")) return "bg-blue-900/30 text-blue-300 border-blue-800/50";
+      if (reason.includes("[New Member]")) return "bg-blue-900/30 text-blue-300 border-blue-800/50";
+      if (reason.includes("[Exempt]")) return "bg-blue-900/30 text-blue-300 border-blue-800/50";
+      if (reason.includes("[Demotion]")) return "bg-red-900/40 text-red-400 border-red-700/50";
+      if (reason.includes("[Removal]")) return "bg-red-950 text-red-500 border-red-800";
+      return "bg-slate-800 text-slate-300 border-slate-700";
+    }
+
+    function getTextColor(reason) {
+      if (!reason) return "text-slate-300";
+      if (reason.includes("[Crushed It!]")) return "text-amber-400";
+      if (reason.includes("[Perfect]")) return "text-purple-400";
+      if (reason.includes("[Promotion]")) return "text-emerald-400";
+      if (reason.includes("[Maintained]")) return "text-blue-400";
+      if (reason.includes("[New Member]")) return "text-blue-400";
+      if (reason.includes("[Exempt]")) return "text-blue-400";
+      if (reason.includes("[Demotion]")) return "text-red-400";
+      if (reason.includes("[Removal]")) return "text-red-500";
+      return "text-slate-300";
+    }
+
+    function renderTable(list) {
+      const container = document.getElementById('roster-container');
+      if (list.length === 0) return container.innerHTML = '<p class="text-slate-400 text-sm py-4">No data matches your filter or archive is empty.</p>';
+      
+      let rowsHtml = list.map(m => `
+        <tr onclick="toggleDetails('${m.id}')" class="border-b border-slate-800/80 hover:bg-slate-800/40 cursor-pointer transition-colors">
+          <td class="py-3 px-4 font-bold text-slate-300">${m.rank}</td>
+          <td class="py-3 px-4 font-semibold text-white">${m.name}</td>
+          <td class="py-3 px-4 text-right font-mono text-slate-300">${m.power}</td>
+          <td class="py-3 px-4 text-right font-mono ${getTextColor(m.reason)} font-semibold">${m.weekly}</td>
+          <td class="py-3 px-4 hidden sm:table-cell"><span class="px-2 py-0.5 rounded text-[11px] font-medium border ${getTagStyle(m.reason)}">${m.reason}</span></td>
+        </tr>
+        <tr id="details-${m.id}" class="hidden bg-slate-950 border-b border-slate-800">
+          <td colspan="5" class="p-4"><div class="text-xs text-slate-400">Mon: <span class="text-slate-200">${m.mon}</span> | Tue: <span class="text-slate-200">${m.tue}</span> | Wed: <span class="text-slate-200">${m.wed}</span> | Thu: <span class="text-slate-200">${m.thu}</span> | Fri: <span class="text-slate-200">${m.fri}</span> | Sat: <span class="text-slate-200">${m.sat}</span> | Donations: <span class="text-blue-300 font-semibold">${m.donations}</span> | New Target: <span class="text-white font-semibold">${m.newRank}</span></div></td>
+        </tr>
+      `).join('');
+      
+      container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-left text-xs sm:text-sm"><thead class="bg-slate-950 text-slate-400 uppercase text-[10px] sm:text-xs border-b border-slate-800"><tr><th class="py-3 px-4">Rank</th><th class="py-3 px-4">Member</th><th class="py-3 px-4 text-right">Power</th><th class="py-3 px-4 text-right">Weekly Duel</th><th class="py-3 px-4 hidden sm:table-cell">Audit Status</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+    }
+
+    function toggleDetails(id) { document.getElementById(`details-${id}`).classList.toggle('hidden'); }
+    
+    function filterRoster() {
+      const q = document.getElementById('search-input').value.toLowerCase();
+      let filtered = rawMembers;
+
+      if (currentTagFilter) {
+        filtered = filtered.filter(m => (m.reason || "").includes(currentTagFilter));
+      }
+
+      if (q) {
+        filtered = filtered.filter(m => 
+          m.name.toLowerCase().includes(q) || 
+          m.rank.toLowerCase().includes(q) ||
+          (m.reason || "").toLowerCase().includes(q)
+        );
+      }
+
+      renderTable(filtered);
+    }
+
+    function showError(err) { document.getElementById('roster-container').innerHTML = `<p class="text-red-400 p-4">${err.message}</p>`; }
+    function showUploadStatus(msg, color) {
+      const box = document.getElementById('upload-status');
+      box.className = `mt-3 p-3 text-xs rounded-lg bg-${color}-950/60 border border-${color}-800 text-${color}-300 block`;
+      box.textContent = msg;
     }
   </script>
 </body>
