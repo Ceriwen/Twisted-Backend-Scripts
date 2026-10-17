@@ -152,6 +152,8 @@ function onOpen() {
       .addItem('🐞 Clear Debug Log', 'clearDebugLogSheet')
       .addItem('📋 Show Debug Log Snippet', 'showDebugSnippet')
       .addItem('📸 Import Strength Ranking - Power Only', 'importPowerRankingOnly')
+      .addSeparator()
+      .addItem('🔄 Sync Code to GitHub', 'syncProjectToGitHub')
     )
   .addToUi();
 }
