@@ -30,6 +30,7 @@ function getDashboardData(viewLastWeek) {
 
   let members = [];
   let totalPower = 0;
+  let totalWeekly = 0;
   let activeMembers = 0;
 
   const parseNum = (val) => {
@@ -39,11 +40,11 @@ function getDashboardData(viewLastWeek) {
 
   data.forEach((row, index) => {
     const name = String(row[1] || "").trim();
-    if (!name || name.startsWith("---") || name.startsWith("⚠️")) return;
+    if (!name || name.startsWith("---") || name.startsWith("⚠️") || name.toLowerCase() === "member") return;
 
     activeMembers++;
     
-    // Corrected column indices matching Sheet layout (Cols A-M):
+    // Column indices matching Sheet layout (Cols A-M):
     const rank = String(row[0] || "-").trim();
     const power = parseNum(row[2]);
     const mon = parseNum(row[3]);
@@ -57,6 +58,7 @@ function getDashboardData(viewLastWeek) {
     const newRank = String(row[11] || "-").trim();
 
     totalPower += power;
+    totalWeekly += weekly;
 
     let reason = String(row[12] || "").trim();
     const nameNote = String(notes[index][1] || "");
@@ -86,19 +88,28 @@ function getDashboardData(viewLastWeek) {
     });
   });
 
+  const avgWeekly = activeMembers > 0 
+    ? (totalWeekly / activeMembers / 1000000).toFixed(1) + "M" 
+    : "0M";
+
   return {
     members: members,
     stats: {
       totalPower: totalPower >= 1000000000 
         ? (totalPower / 1000000000).toFixed(2) + "B" 
         : (totalPower / 1000000).toFixed(2) + "M",
-      activeMembers: activeMembers
+      activeMembers: activeMembers,
+      avgWeekly: avgWeekly
     }
   };
 }
 
-function uploadFilesToDrive(filesData, targetFolderName) {
+function uploadFilesToDrive(filesData, password) {
   try {
+    if (password !== "Twisted4Life") {
+      return { success: false, error: "Unauthorized: Invalid leadership password." };
+    }
+
     let inboxFolderId = CONFIG.INBOX_FOLDER_ID;
     let targetFolder = DriveApp.getFolderById(inboxFolderId);
 
@@ -119,9 +130,11 @@ function uploadFilesToDrive(filesData, targetFolderName) {
 function runAIBatchFromApp(password) {
   if (password !== "Twisted4Life") throw new Error("Unauthorized.");
   
-  if (typeof processNextAvailableFolder === "function") {
+  if (typeof sortAndProcessInboxFolder === "function") {
+    return sortAndProcessInboxFolder();
+  } else if (typeof processNextAvailableFolder === "function") {
     return processNextAvailableFolder();
   } else {
-    throw new Error("processNextAvailableFolder function was not found.");
+    throw new Error("Batch processing functions were not found.");
   }
 }
