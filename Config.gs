@@ -55,11 +55,14 @@ const CONFIG = {
     "ZioooooooooooooooON": "ZioooooooooooooooN",
     "Apostle T Hoarder": "Thot Hoarder",
     "ZioooooooooooooooON ": "ZioooooooooooooooN",
+    "ZiooooooooooooooooooN ": "ZioooooooooooooooN",
     "Not the one": "N0t th3 0n3",
+    "N0t th3 On3": "NOt th3 On3",
     "McNasty D1": "McNastyyyyy",
     "McNasty": "McNastyyyyy",
     "At hutto D1": "At hutto D2",
     "SoulCollector0 D1": "Soulcollector0",
+    "M3ATLOAF": "DONK333Y",
     "WasiWarrior2": "WasiWarrior"
   },
   
