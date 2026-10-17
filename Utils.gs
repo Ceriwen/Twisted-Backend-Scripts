@@ -10,12 +10,41 @@ function updateQueueVisualStatus(message, backgroundColor) {
     statusCell.setValue(message);
     statusCell.setBackground(backgroundColor);
     statusCell.setFontWeight("bold");
+    SpreadsheetApp.flush();
+  } catch (e) {}
+}
+
+/**
+ * Checks if a member's note contains any exempt/LOA keywords from CONFIG.
+ * Required by RankEngine.gs and ScreenshotEngine.gs.
+ */
+function isExemptNote(noteText) {
+  if (!noteText) return false;
+  let lower = noteText.toString().toLowerCase();
+  let keywords = (typeof CONFIG !== "undefined" && CONFIG.TARGETS && CONFIG.TARGETS.EXEMPT_KEYWORDS)
+    ? CONFIG.TARGETS.EXEMPT_KEYWORDS
+    : ["exempt", "vacation", "loa", "personal", "absence", "sick"];
+  return keywords.some(kw => lower.includes(kw.toLowerCase()));
+}
+
+/**
+ * Purges any temporary sorting columns created past Column M (Col 13).
+ */
+function deleteExtraColumns(sheetParam) {
+  try {
+    let sheet = sheetParam || SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Data Import");
+    if (!sheet) return;
+    let maxCols = sheet.getMaxColumns();
+    if (maxCols > 13) {
+      sheet.deleteColumns(14, maxCols - 13);
+    }
   } catch (e) {}
 }
 
 function findRosterRange(sheet) {
   let lastRow = sheet.getLastRow();
-  let lastCol = sheet.getLastColumn() || 14;
+  if (lastRow < 1) return { startRow: 2, rowCount: 2, colCount: 13 };
+  let lastCol = Math.min(sheet.getLastColumn() || 13, 13);
   let values = sheet.getRange(1, 1, lastRow, lastCol).getValues();
   let headerRow = -1;
   for (let i = 0; i < values.length; i++) {
@@ -25,7 +54,7 @@ function findRosterRange(sheet) {
       break;
     }
   }
-  if (headerRow === -1) return { startRow: 1, rowCount: 82, colCount: lastCol };
+  if (headerRow === -1) return { startRow: 2, rowCount: Math.max(lastRow - 1, 2), colCount: lastCol };
 
   let trueLastMemberRow = headerRow;
   for (let i = headerRow; i < values.length; i++) {
@@ -73,6 +102,7 @@ function menuVerifyAndRestore() {
   const sheet = ss.getSheetByName("Data Import") || ss.getActiveSheet();
 
   cleanAndSortRoster(sheet);
+  deleteExtraColumns(sheet);
 
   let rRange = findRosterRange(sheet);
   if (!rRange || rRange.rowCount <= 1) return;
@@ -104,12 +134,12 @@ function menuVerifyAndRestore() {
 
 function getTotalRosterCount(sheet) {
   let range = findRosterRange(sheet);
-  if (!range) return 0;
+  if (!range || range.rowCount <= 1) return 0;
   let values = sheet.getRange(range.startRow + 1, 1, range.rowCount - 1, range.colCount).getValues();
   let count = 0;
   for (let i = 0; i < values.length; i++) {
     let name = values[i][1] ? values[i][1].toString().trim() : "";
-    if (name !== "" && !name.startsWith("⚠️") && !name.startsWith("MISSING")) count++;
+    if (name !== "" && !name.startsWith("⚠️") && !name.startsWith("MISSING") && !name.startsWith("---")) count++;
   }
   return count;
 }
@@ -178,6 +208,7 @@ function clearAllHighlightsAndNotes() {
       if (noteStr) {
         if (noteStr.includes("Matched & Verified") ||
             noteStr.includes("Missing from all") ||
+            noteStr.includes("MEMBER NOT DETECTED") ||
             noteStr.includes("New Member Added")) {
           notes[r][c] = "";
           notesModified = true;
@@ -231,7 +262,7 @@ function menuUpdateRankWithNewRank() {
     }
   }
 
-  if (headerRow === -1 || rankCol === -1 || newRankCol === -1) {
+  if (headerRow === -1 || rankCol === -1 || newRankCol !== -1 === false) {
     SpreadsheetApp.getUi().alert(
       "Column Detection Failed",
       `Could not automatically locate both 'Rank' and 'New Rank' headers on "${sheet.getName()}".\n\n` +
@@ -282,6 +313,9 @@ function mobileMenuHandler(e) {
 
   // D1 is Row 1, Column 4
   if (row === 1 && col === 4) {
+    e.range.setValue("⚙️ Select Action...");
+    SpreadsheetApp.flush();
+
     if (val === "📥 Sort & Process Inbox") {
       sortAndProcessInboxFolder();
     } else if (val === "🚀 Process Next Folder") {
@@ -292,11 +326,8 @@ function mobileMenuHandler(e) {
       executeSundayEowReset();
     } else if (val === "⏱️ Toggle Auto Watcher") {
       toggleAutoImportWatcher();
-    } else if (val === "🔄 Sync Code to GitHub") {
+    } else if (val === "🔄 Sync Code to GitHub" && typeof syncProjectToGitHub === "function") {
       syncProjectToGitHub();
     }
-
-    // Reset cell back to placeholder
-    e.range.setValue("⚙️ Select Action...");
   }
 }
