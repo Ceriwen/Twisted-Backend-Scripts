@@ -59,8 +59,7 @@ function paintBatchFormatting(sheet, sheetData, nameColIdx, metricColIdx, rankCo
         columnNotes.push([priorMetricNote]);
       } else if (!isStrengthRanking && !isCumulativeFolder && currentLabel) {
         columnBackgrounds.push([CONFIG.COLORS.MISSING_DATA]);
-        columnNotes.push([verificationLogs[actualRow] || `⚠️ MEMBER NOT DETECTED (${currentLabel}):
-Score missing.`]);
+        columnNotes.push([verificationLogs[actualRow] || `⚠️ MEMBER NOT DETECTED (${currentLabel}):\nScore missing.`]);
       } else {
         columnBackgrounds.push([priorMetricColor || ""]);
         columnNotes.push([priorMetricNote || ""]);
@@ -203,7 +202,7 @@ function runRankCalculationEngine(targetDayLabels, contextLabelMode) {
     let reasonDetails = "";
     
     let isProtectedManagement = CONFIG.TARGETS.PROTECT_RANKS.includes(currentRank);
-    let isExempt = isExemptNote(nameNote) || isGracePeriod;
+    let isExempt = typeof isExemptNote === "function" ? isExemptNote(nameNote) : false || isGracePeriod;
     
     if (isProtectedManagement) {
       calculatedRank = currentRank;
@@ -274,12 +273,6 @@ function runRankCalculationEngine(targetDayLabels, contextLabelMode) {
   if (weeklyColIdx > -1) {
     sheet.getRange(rosterRange.startRow + 1, weeklyColIdx + 1, weeklyScoresToWrite.length, 1).setValues(weeklyScoresToWrite);
   }
-  
-    // Ensure extra helper columns are purged and row verification dropdowns applied automatically
-  try {
-    if (typeof deleteExtraColumns === "function") deleteExtraColumns(sheet);
-    if (typeof applyVerificationDropdowns === "function") applyVerificationDropdowns(sheet);
-  } catch (e) {}
 
   // Auto-trigger Discord Live Card update
   try {
