@@ -3,6 +3,9 @@
  * TWST Roster Management System
  */
 
+const GEMINI_MODEL = "gemini-3.8-flash";
+const BATCH_SIZE = 5; // Processes up to 5 screenshots per Gemini batch request
+
 function sortAndProcessInboxFolder() {
   if (CONFIG.INBOX_FOLDER_ID && !CONFIG.INBOX_FOLDER_ID.startsWith("YOUR_")) {
     let inboxFolder;
@@ -23,7 +26,9 @@ function sortAndProcessInboxFolder() {
               f.moveTo(DriveApp.getFolderById(CONFIG.FOLDER_MAPPINGS[cat]));
               sortedCount++;
             }
-          } catch (e) {}
+          } catch (e) {
+            console.error("Inbox sort error on " + f.getName() + ": " + e.message);
+          }
         }
       }
       
@@ -51,7 +56,7 @@ function sortAndProcessInboxFolder() {
 function classifyScreenshotWithGemini(file) {
   const apiKey = PropertiesService.getScriptProperties().getProperty("GEMINI_API_KEY");
   if (!apiKey) return null;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
   const blob = file.getBlob();
   const payload = {
     contents: [{ parts: [{ text: `Classify this Last War alliance screenshot into ONE: "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Strength Ranking - Power", "Strength Ranking - Donations". Return ONLY the exact string.` }, { inlineData: { mimeType: blob.getContentType() || "image/jpeg", data: Utilities.base64Encode(blob.getBytes()) } }] }],
@@ -63,6 +68,10 @@ function classifyScreenshotWithGemini(file) {
     if (json.candidates && json.candidates[0] && json.candidates[0].content) {
       let cat = json.candidates[0].content.parts[0].text.trim().replace(/^["']|["']$/g, "");
       if (CONFIG.FOLDER_MAPPINGS[cat]) return cat;
+    } else if (json.error) {
+      let ss = SpreadsheetApp.getActiveSpreadsheet();
+      let debugSheet = ss.getSheetByName("Debug Log") || ss.insertSheet("Debug Log");
+      debugSheet.appendRow([new Date(), `❌ Gemini Classify API Error (${file.getName()}): ${json.error.message}`]);
     }
   } catch (e) {}
   return null;
@@ -131,16 +140,22 @@ function processFolderDirectly(headingLabelsArray, returnStats = false, ignoreRa
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName("Data Import") || ss.getActiveSheet();
   
+  // --- BULLETPROOF BACKUP CREATION (WATCHER-SAFE & NON-DESTRUCTIVE ON RESUME) ---
+  let debugSheet = ss.getSheetByName("Debug Log") || ss.insertSheet("Debug Log");
   try {
-    let tempSnap = ss.getSheetByName("_ImportBackup");
-    if (!tempSnap) {
-      tempSnap = ss.insertSheet("_ImportBackup");
+    let oldSnap = ss.getSheetByName("_ImportBackup");
+    if (!oldSnap) {
+      let tempSnap = ss.insertSheet("_ImportBackup");
       let srcRange = sheet.getDataRange();
-      srcRange.copyTo(tempSnap.getRange(1, 1));
-      srcRange.copyTo(tempSnap.getRange(1, 1), {contentsOnly: true});
+      if (srcRange.getNumRows() > 0 && srcRange.getNumColumns() > 0) {
+        srcRange.copyTo(tempSnap.getRange(1, 1));
+        srcRange.copyTo(tempSnap.getRange(1, 1), {contentsOnly: true});
+      }
       tempSnap.hideSheet();
     }
-  } catch(e) {}
+  } catch(e) {
+    debugSheet.appendRow([new Date(), "⚠️ Backup Error in processFolderDirectly: " + e.message]);
+  }
   
   // Strip any previous divider rows before starting import
   if (typeof cleanAndSortRoster === "function") {
@@ -155,7 +170,6 @@ function processFolderDirectly(headingLabelsArray, returnStats = false, ignoreRa
     sheet.getRange(startRange.startRow + 1, nIdx + 1, startRange.rowCount - 1, 1).setBackground(null);
   }
   
-  let debugSheet = ss.getSheetByName("Debug Log") || ss.insertSheet("Debug Log");
   let totalProcessedFiles = 0;
   let batchUniqueMatched = new Set();
   let batchAppended = 0;
@@ -216,21 +230,23 @@ function processFolderDirectly(headingLabelsArray, returnStats = false, ignoreRa
     }
     if (metricColIdx === -1) continue;
 
-    for (let fIdx = 0; fIdx < folderFiles.length; fIdx++) {
+    // --- PROCESS IN BATCHES OF 5 SCREENSHOTS ---
+    for (let bIdx = 0; bIdx < folderFiles.length; bIdx += BATCH_SIZE) {
       if (Date.now() - START_TIME > MAX_RUNTIME_MS) {
         timeoutTriggered = true;
         updateQueueVisualStatus("⚠️ Interrupted/Timed Out. Run again to resume.", "#f4cccc");
         try { ss.toast("Nearing Google's execution limit. Saving current progress...", "⏳ Graceful Pause", 8); } catch (e) {}
-        debugSheet.appendRow([new Date(), `⚠️ Graceful Exit Triggered: Hit 3.5m limit on file ${fIdx + 1}`]);
+        debugSheet.appendRow([new Date(), `⚠️ Graceful Exit Triggered: Hit 3.5m limit at file ${bIdx + 1}`]);
         break; 
       }
 
-      let file = folderFiles[fIdx];
-      let fileName = file.getName();
-      let fileNumStr = `[${currentLabel}] File ${fIdx + 1}/${folderFiles.length}: ${fileName}`;
+      let batchFiles = folderFiles.slice(bIdx, bIdx + BATCH_SIZE);
+      let startNum = bIdx + 1;
+      let endNum = Math.min(bIdx + BATCH_SIZE, folderFiles.length);
+      let batchLabelStr = `[${currentLabel}] Batch (${startNum}-${endNum} of ${folderFiles.length})`;
       
-      updateQueueVisualStatus(`⚡ Processing: ${fileNumStr}`, "#fff2cc");
-      debugSheet.appendRow([new Date(), `Scanning file -> ${fileNumStr}`]);
+      updateQueueVisualStatus(`⚡ Processing: ${batchLabelStr}`, "#fff2cc");
+      debugSheet.appendRow([new Date(), `Scanning ${batchLabelStr}`]);
       
       let rosterNames = sheetData.slice(1)
         .map((row, idx) => ({ 
@@ -243,17 +259,17 @@ function processFolderDirectly(headingLabelsArray, returnStats = false, ignoreRa
       
       let parsedPlayers;
       try {
-        parsedPlayers = parseLeaderboardWithGemini(file, currentLabel);
-        debugSheet.appendRow([new Date(), `Gemini extracted ${parsedPlayers.length} entries`]);
+        parsedPlayers = parseLeaderboardBatchWithGemini(batchFiles, currentLabel);
+        debugSheet.appendRow([new Date(), `Gemini extracted ${parsedPlayers.length} entries from batch (${startNum}-${endNum})`]);
       } catch (geminiErr) {
-        debugSheet.appendRow([new Date(), `❌ Gemini Parse Error on ${fileName}: ${geminiErr.message}`]);
+        debugSheet.appendRow([new Date(), `❌ Gemini Parse Error on ${batchLabelStr}: ${geminiErr.message}`]);
         continue;
       }
       
-      let fileMatches = 0;
+      let batchMatches = 0;
       parsedPlayers.forEach(p => {
         let cleanCandidateName = p.name ? p.name.trim() : "";
-        if (!cleanCandidateName) return;
+        if (!cleanCandidateName || cleanCandidateName.toUpperCase().includes("TWISTED") && cleanCandidateName.length < 5) return;
         
         let scoreVal = cleanNumericValues(p.score);
         let rawRankVal = p.rank ? p.rank.toString().trim().toUpperCase() : "";
@@ -307,9 +323,9 @@ function processFolderDirectly(headingLabelsArray, returnStats = false, ignoreRa
           cumulativeMatchedRows.add(actualRow);
           cumulativeUpdatedRows.add(actualRow);
           batchUniqueMatched.add(actualRow);
-          fileMatches++;
+          batchMatches++;
           
-          cumulativeVerificationLogs[actualRow] = `✅ Matched & Verified via ${currentLabel} (${fileName})\nScore: ${scoreVal}`;
+          cumulativeVerificationLogs[actualRow] = `✅ Matched & Verified via ${currentLabel} (Batch ${startNum}-${endNum})\nScore: ${scoreVal}`;
           
           if (rankColIdx > -1 && rankVal && currentLabel !== "Strength Ranking - Donations" && !ignoreRanks) {
             let existingRank = sheetData[matchedRowIdx][rankColIdx] ? sheetData[matchedRowIdx][rankColIdx].toString().trim().toUpperCase() : "";
@@ -332,15 +348,22 @@ function processFolderDirectly(headingLabelsArray, returnStats = false, ignoreRa
             cumulativeUpdatedRows.add(freshRowIdx);
             batchUniqueMatched.add(freshRowIdx);
             batchAppended++;
-            fileMatches++;
+            batchMatches++;
+            
+            rosterNames.push({
+              rawName: cleanCandidateName,
+              cleanName: candidateClean,
+              baseName: candidateBase,
+              index: freshRowIdx - 1
+            });
             
             addedNamesList.push(cleanCandidateName); 
-            cumulativeVerificationLogs[freshRowIdx] = `⚠️ New Member Added via ${currentLabel} (${fileName})\nScore: ${scoreVal}`;
+            cumulativeVerificationLogs[freshRowIdx] = `⚠️ New Member Added via ${currentLabel} (Batch ${startNum}-${endNum})\nScore: ${scoreVal}`;
           }
         }
       });
       
-      // --- PER-FILE INCREMENTAL SPREADSHEET WRITES ---
+      // --- PER-BATCH INCREMENTAL SPREADSHEET WRITES ---
       if (sheetData.length > 1) {
         let nameValues = sheetData.slice(1).map(row => [row[nameColIdx]]);
         sheet.getRange(rosterRange.startRow + 1, nameColIdx + 1, nameValues.length, 1).setValues(nameValues);
@@ -364,13 +387,15 @@ function processFolderDirectly(headingLabelsArray, returnStats = false, ignoreRa
       }
       
       paintBatchFormatting(sheet, sheetData, nameColIdx, metricColIdx, rankColIdx, cumulativeFlaggedRows, cumulativeMatchedRows, cumulativeUpdatedRows, isStrengthRanking, [], cumulativeVerificationLogs, [], currentLabel);
-      SpreadsheetApp.flush(); // Ensure Sheet commits changes after each screenshot
+      SpreadsheetApp.flush();
       
-      debugSheet.appendRow([new Date(), `Committed ${fileName} -> Matched/Added: ${fileMatches} players.`]);
-      totalProcessedFiles++;
+      debugSheet.appendRow([new Date(), `Committed Batch (${startNum}-${endNum}) -> Matched/Added: ${batchMatches} players.`]);
+      totalProcessedFiles += batchFiles.length;
       
       if (targetProcessedSubfolder) {
-        try { file.moveTo(targetProcessedSubfolder); } catch (e) {}
+        batchFiles.forEach(f => {
+          try { f.moveTo(targetProcessedSubfolder); } catch (e) {}
+        });
       }
     }
 
@@ -425,7 +450,7 @@ function processFolderDirectly(headingLabelsArray, returnStats = false, ignoreRa
         let sortCol = finalRosterRange.colCount + 1;
         let maxCols = sheet.getMaxColumns();
         if (sortCol > maxCols) sheet.insertColumnAfter(maxCols); 
-        
+
         sheet.getRange(finalRosterRange.startRow + 1, sortCol, sortKeys.length, 1).setValues(sortKeys);
         sheet.getRange(finalRosterRange.startRow + 1, 1, finalRosterRange.rowCount - 1, sortCol).sort(sortCol);
         sheet.getRange(finalRosterRange.startRow + 1, sortCol, finalRosterRange.rowCount - 1, 1).clearContent();
@@ -457,6 +482,10 @@ function processFolderDirectly(headingLabelsArray, returnStats = false, ignoreRa
                .setValues([Array(finalRosterRange.colCount).fill("").fill("--- MISSING / UNMATCHED ---", nIdx, nIdx+1)]);
         }
       }
+      
+      // Clean up backup sheet upon successful completion
+      let tempSnap = ss.getSheetByName("_ImportBackup");
+      if (tempSnap) ss.deleteSheet(tempSnap);
     }
   }
   
@@ -476,13 +505,56 @@ function processFolderDirectly(headingLabelsArray, returnStats = false, ignoreRa
   return { processedFiles: totalProcessedFiles, matched: batchUniqueMatched.size, appended: batchAppended, timedOut: timeoutTriggered };
 }
 
+function parseLeaderboardBatchWithGemini(filesArray, currentLabel) {
+  const apiKey = PropertiesService.getScriptProperties().getProperty("GEMINI_API_KEY");
+  if (!apiKey) throw new Error("GEMINI_API_KEY missing in Script Properties.");
+  
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+  
+  let parts = [{
+    text: `Analyze these ${filesArray.length} Last War mobile game alliance leaderboard screenshot(s) (${currentLabel}). Extract every commander/player name across all images, their rank (if visible, e.g. R1, R2, R3, R4, R5), and their point score or metric value. Return ONLY a single combined valid JSON array of objects with keys: 'rank', 'name', 'score'. No markdown.`
+  }];
+
+  filesArray.forEach(file => {
+    const blob = file.getBlob();
+    parts.push({
+      inlineData: {
+        mimeType: blob.getContentType() || "image/jpeg",
+        data: Utilities.base64Encode(blob.getBytes())
+      }
+    });
+  });
+
+  const payload = {
+    contents: [{ parts: parts }],
+    generationConfig: { temperature: 0.1 }
+  };
+  
+  let res = UrlFetchApp.fetch(url, { method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true });
+  let json = JSON.parse(res.getContentText());
+  
+  if (!json.candidates || !json.candidates[0] || !json.candidates[0].content) {
+    throw new Error(json.error ? json.error.message : "Empty response from Gemini API");
+  }
+  
+  let rawText = json.candidates[0].content.parts[0].text.trim();
+  let match = rawText.match(/\[.*\]/s);
+  let jsonString = match ? match[0] : rawText.replace(/^```json\s*|^```\s*|\s*```$/g, "");
+  return JSON.parse(jsonString);
+}
+
+function parseLeaderboardWithGemini(file, currentLabel) {
+  return parseLeaderboardBatchWithGemini([file], currentLabel);
+}
+
 function rollbackLastImport() {
   let ss = SpreadsheetApp.getActiveSpreadsheet();
   let ui = SpreadsheetApp.getUi();
   let tempSnap = ss.getSheetByName("_ImportBackup");
   
-  if (!tempSnap) {
-    ui.alert("⚠️ Rollback Unavailable", "No recent import backup found in this session.", ui.ButtonSet.OK);
+  if (!tempSnap || tempSnap.getLastRow() < 2) {
+    if (tempSnap) ss.deleteSheet(tempSnap);
+    ui.alert("⚠️ Rollback Unavailable", "The backup snapshot is empty or invalid. Your sheet will not be cleared.", ui.ButtonSet.OK);
     return;
   }
   
@@ -509,30 +581,6 @@ function rollbackLastImport() {
   }
   
   ui.alert("✅ Rollback Complete!", "Your roster, notes, and screenshots have been successfully restored to their pre-import state.", ui.ButtonSet.OK);
-}
-
-function parseLeaderboardWithGemini(file, currentLabel) {
-  const apiKey = PropertiesService.getScriptProperties().getProperty("GEMINI_API_KEY");
-  if (!apiKey) throw new Error("GEMINI_API_KEY missing in Script Properties.");
-  
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-  const blob = file.getBlob();
-  const payload = {
-    contents: [{ parts: [{ text: `Analyze this Last War mobile game alliance leaderboard screenshot (${currentLabel}). Extract every commander/player name, their rank (if visible, e.g. R1, R2, R3, R4, R5), and their point score or metric value. Return ONLY a valid JSON array of objects with keys: 'rank', 'name', 'score'. No markdown.` }, { inlineData: { mimeType: blob.getContentType() || "image/jpeg", data: Utilities.base64Encode(blob.getBytes()) } }] }],
-    generationConfig: { temperature: 0.1 }
-  };
-  
-  let res = UrlFetchApp.fetch(url, { method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true });
-  let json = JSON.parse(res.getContentText());
-  
-  if (!json.candidates || !json.candidates[0] || !json.candidates[0].content) {
-    throw new Error(json.error ? json.error.message : "Empty response from Gemini API");
-  }
-  
-  let rawText = json.candidates[0].content.parts[0].text.trim();
-  let match = rawText.match(/\[.*\]/s);
-  let jsonString = match ? match[0] : rawText.replace(/^```json\s*|^```\s*|\s*```$/g, "");
-  return JSON.parse(jsonString);
 }
 
 function emptyProcessedFolders(silent = false) {
