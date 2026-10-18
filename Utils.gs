@@ -270,38 +270,3 @@ function menuUpdateRankWithNewRank() {
 
   ss.toast(`Updated ${updatedCount} member ranks on "${sheet.getName()}".`, "✅ Ranks Updated", 4);
 }
-
-/**
- * Mobile Dropdown Handler (Installable onEdit trigger)
- * Listens for actions selected in cell D1 of the "Data Import" tab.
- */
-function mobileMenuHandler(e) {
-  if (!e || !e.range) return;
-  const sheet = e.range.getSheet();
-
-  if (sheet.getName() !== "Data Import") return;
-
-  const row = e.range.getRow();
-  const col = e.range.getColumn();
-  const val = String(e.value || "").trim();
-
-  // D1 is Row 1, Column 4
-  if (row === 1 && col === 4) {
-    e.range.setValue("⚙️ Select Action...");
-    SpreadsheetApp.flush();
-
-    if (val === "📥 Sort & Process Inbox") {
-      sortAndProcessInboxFolder();
-    } else if (val === "🚀 Process Next Folder") {
-      processNextAvailableFolder();
-    } else if (val === "🔮 Calculate Weekly Ranks") {
-      calculateWeeklyRankAdjustments();
-    } else if (val === "📅 Run Sunday Reset") {
-      executeSundayEowReset();
-    } else if (val === "⏱️ Toggle Auto Watcher") {
-      toggleAutoImportWatcher();
-    } else if (val === "🔄 Sync Code to GitHub" && typeof syncProjectToGitHub === "function") {
-      syncProjectToGitHub();
-    }
-  }
-}
