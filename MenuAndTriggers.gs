@@ -169,11 +169,9 @@ function mobileMenuHandler(e) {
   // D1 is Row 1, Column 4
   if (row === 1 && col === 4) {
     let val = String(e.range.getValue() || "").trim();
-    
-    // Immediately reset the dropdown back to the prompt
-    e.range.setValue("⚙️ Select Action...");
-    SpreadsheetApp.flush();
+    if (!val || val === "⚙️ Select Action...") return;
 
+    // Route action first
     if (val === "📥 Sort & Process Inbox") {
       sortAndProcessInboxFolder();
     } else if (val === "🚀 Process Next Folder") {
@@ -189,5 +187,9 @@ function mobileMenuHandler(e) {
     } else if (val === "🔄 Sync Code to GitHub" && typeof syncProjectToGitHub === "function") {
       syncProjectToGitHub();
     }
+
+    // Reset dropdown back to default prompt after execution
+    e.range.setValue("⚙️ Select Action...");
+    SpreadsheetApp.flush();
   }
 }
