@@ -5,7 +5,7 @@
 
 const GITHUB_CONFIG = {
   BRANCH: "main",
-  PARENT_FOLDER_ID: "1EPv32fFEozthlMsQx1DcEUpmpL4pakEf", // <-- Paste your folder ID here (leave blank "" if you want it back on root)
+  PARENT_FOLDER_ID: "1EPv32fFEozthlMsQx1DcEUpmpL4pakEf",
   DRIVE_MIRROR_FOLDER_NAME: "TWST Codebase Mirror",
   MASTER_FILE_NAME: "TWST_Master_Codebase.txt",
   COMMIT_AUTHOR: {
@@ -28,17 +28,18 @@ function syncProjectToGitHub() {
 
   const scriptId = ScriptApp.getScriptId();
   const files = fetchProjectFiles(scriptId);
-  Logger.log(`Found ${files.length} files in project.`);
 
-  if (!files || files.length === 0) {
-    const errMsg = "⚠️ Sync Failed: Could not read Apps Script project files (Check OAuth Scopes in appsscript.json).";
+  if (!files || !Array.isArray(files) || files.length === 0) {
+    const errMsg = "⚠️ Sync Failed: Could not read Apps Script project files. Check OAuth Scopes.";
     Logger.log(errMsg);
     if (typeof updateQueueVisualStatus === "function") updateQueueVisualStatus(errMsg, "#f4cccc");
-    try { ss.toast(errMsg, "❌ API Error", 10); } catch (e) {}
+    try { ss.toast(errMsg, "❌ API Scope Error", 10); } catch (e) {}
     return;
   }
 
-  // 1. Sync to Google Drive Mirror Folder (Plain-text .txt for seamless Gemini access)
+  Logger.log(`Found ${files.length} files in project.`);
+
+  // 1. Sync to Google Drive Mirror Folder
   let driveSyncedCount = 0;
   try {
     driveSyncedCount = syncFilesToDriveMirror(files);
@@ -68,7 +69,6 @@ function syncProjectToGitHub() {
     const path = encodeURIComponent(filename);
     const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
 
-    // Get current SHA if file exists
     let sha = null;
     const getRes = UrlFetchApp.fetch(apiUrl, {
       method: "get",
@@ -86,7 +86,7 @@ function syncProjectToGitHub() {
 
     const payload = {
       message: `Cloud Sync: Update ${filename}`,
-      content: Utilities.base64Encode(file.source, Utilities.Charset.UTF_8),
+      content: Utilities.base64Encode(file.source || "", Utilities.Charset.UTF_8),
       branch: branch,
       committer: GITHUB_CONFIG.COMMIT_AUTHOR
     };
@@ -119,7 +119,7 @@ function syncProjectToGitHub() {
     const successMsg = `✅ Synced ${pushedCount} files to GitHub & Drive at ${timeStr}`;
     Logger.log(successMsg);
     if (typeof updateQueueVisualStatus === "function") updateQueueVisualStatus(successMsg, "#d9ead3");
-    try { ss.toast(`Pushed ${pushedCount} files to GitHub & updated "${GITHUB_CONFIG.MASTER_FILE_NAME}" in Drive!`, "✅ Cloud Sync Complete", 6); } catch (e) {}
+    try { ss.toast(`Pushed ${pushedCount} files to GitHub & updated Drive mirror!`, "✅ Cloud Sync Complete", 6); } catch (e) {}
   } else {
     const warnMsg = `⚠️ GitHub: ${pushedCount} ok, Failed: ${failedFiles.join(", ")} | Drive: ${driveSyncedCount} ok`;
     Logger.log(warnMsg);
@@ -128,19 +128,61 @@ function syncProjectToGitHub() {
   }
 }
 
-/**
- * Saves each script as a readable .txt file AND builds a single combined Master file
- * in Google Drive so Gemini can read the entire live project from Drive anytime.
- */
 function syncFilesToDriveMirror(files) {
-  let folderIter = DriveApp.getFoldersByName(GITHUB_CONFIG.DRIVE_MIRROR_FOLDER_NAME);
-  let folder = folderIter.hasNext() ? folderIter.next() : DriveApp.createFolder(GITHUB_CONFIG.DRIVE_MIRROR_FOLDER_NAME);
+  let parentFolder = DriveApp.getRootFolder();
+  if (GITHUB_CONFIG.PARENT_FOLDER_ID && !GITHUB_CONFIG.PARENT_FOLDER_ID.startsWith("YOUR_")) {
+    try {
+      parentFolder = DriveApp.getFolderById(GITHUB_CONFIG.PARENT_FOLDER_ID);
+    } catch (e) {
+      Logger.log("Could not find parent folder ID, defaulting to root.");
+    }
+  }
 
-  let masterContent = `================================================================================\n`;
-  masterContent += `TWST ROSTER MANAGEMENT SYSTEM - MASTER CODEBASE SNAPSHOT\n`;
-  masterContent += `Last Synced: ${new Date().toLocaleString()}\n`;
-  masterContent += `================================================================================\n\n`;
+  let folderIter = parentFolder.getFoldersByName(GITHUB_CONFIG.DRIVE_MIRROR_FOLDER_NAME);
+  let folder = folderIter.hasNext() ? folderIter.next() : parentFolder.createFolder(GITHUB_CONFIG.DRIVE_MIRROR_FOLDER_NAME);
 
+  // --- AUTOMATED PROJECT MAP GENERATION START ---
+  let mapContent = `================================================================================\n`;
+  mapContent += `TWST ROSTER MANAGEMENT SYSTEM - CODEBASE DIRECTORY & PROJECT MAP\n`;
+  mapContent += `Auto-Generated on Sync: ${new Date().toLocaleString()}\n`;
+  mapContent += `================================================================================\n\n`;
+
+  const functionRegex = /function\s+([a-zA-Z0-9_]+)\s*\(/g;
+
+  files.forEach(file => {
+    let ext = ".gs";
+    if (file.type === "HTML") ext = ".html";
+    else if (file.type === "JSON") ext = ".json";
+
+    const rawName = file.name.endsWith(ext) ? file.name : (file.name + ext);
+    mapContent += `## FILE: ${rawName}\n`;
+
+    let sourceCode = file.source || "";
+    let match;
+    let functionsFound = [];
+    
+    // Reset regex index state before matching
+    functionRegex.lastIndex = 0;
+    while ((match = functionRegex.exec(sourceCode)) !== null) {
+      functionsFound.push(match[1] + "()");
+    }
+
+    if (functionsFound.length > 0) {
+      functionsFound.forEach(func => {
+        mapContent += `  * ${func}\n`;
+      });
+    } else {
+      mapContent += `  * (No functions or static declaration found)\n`;
+    }
+    mapContent += `\n`;
+  });
+
+  mapContent += `================================================================================\n`;
+  mapContent += `END OF AUTOMATED PROJECT MAP - FULL CODEBASE CONTENT BELOW\n`;
+  mapContent += `================================================================================\n\n`;
+  // --- AUTOMATED PROJECT MAP GENERATION END ---
+
+  let masterContent = mapContent;
   let count = 0;
 
   files.forEach(file => {
@@ -149,20 +191,18 @@ function syncFilesToDriveMirror(files) {
     else if (file.type === "JSON") ext = ".json";
 
     const rawName = file.name.endsWith(ext) ? file.name : (file.name + ext);
-    const txtFileName = rawName + ".txt"; // Plain text extension so Gemini never blocks it
+    const txtFileName = rawName + ".txt";
 
     masterContent += `\n\n// =============================================================================\n`;
-    masterContent += `// FILE: ${rawName}\n`;
+    masterContent += `// SOURCE FILE: ${rawName}\n`;
     masterContent += `// =============================================================================\n\n`;
-    masterContent += file.source + `\n`;
+    masterContent += (file.source || "") + `\n`;
 
-    upsertDriveTextFile(folder, txtFileName, file.source);
+    upsertDriveTextFile(folder, txtFileName, file.source || "");
     count++;
   });
 
-  // Save the combined single-file snapshot
   upsertDriveTextFile(folder, GITHUB_CONFIG.MASTER_FILE_NAME, masterContent);
-
   return count;
 }
 
@@ -189,44 +229,9 @@ function fetchProjectFiles(scriptId) {
 
   if (res.getResponseCode() !== 200) {
     Logger.log(`API Error: ${res.getResponseCode()}\n${res.getContentText()}`);
-    return [];
+    return null;
   }
 
-  return JSON.parse(res.getContentText()).files || [];
-}
-
-/**
- * Run this function ONCE from the Apps Script editor to install 
- * a nightly automated trigger that syncs your project every night between midnight and 1 AM.
- */
-function setupNightlyGitHubSyncTrigger() {
-  // Clear any existing triggers for this function to prevent duplicates
-  let triggers = ScriptApp.getProjectTriggers();
-  triggers.forEach(t => {
-    if (t.getHandlerFunction() === "syncProjectToGitHub") {
-      ScriptApp.deleteTrigger(t);
-    }
-  });
-
-  // Create a new time-driven trigger to run every night
-  ScriptApp.newTrigger("syncProjectToGitHub")
-    .timeBased()
-    .everyDays(1)
-    .atHour(0) // Midnight
-    .create();
-
-  Logger.log("Nightly GitHub & Drive sync trigger successfully installed!");
-}
-
-/**
- * Run this if you ever want to disable the nightly auto-sync.
- */
-function removeNightlyGitHubSyncTrigger() {
-  let triggers = ScriptApp.getProjectTriggers();
-  triggers.forEach(t => {
-    if (t.getHandlerFunction() === "syncProjectToGitHub") {
-      ScriptApp.deleteTrigger(t);
-    }
-  });
-  Logger.log("Nightly sync trigger removed.");
+  let json = JSON.parse(res.getContentText());
+  return json.files || [];
 }
