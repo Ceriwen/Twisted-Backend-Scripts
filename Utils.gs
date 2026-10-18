@@ -14,10 +14,6 @@ function updateQueueVisualStatus(message, backgroundColor) {
   } catch (e) {}
 }
 
-/**
- * Checks if a member's note contains any exempt/LOA keywords from CONFIG.
- * Required by RankEngine.gs and ScreenshotEngine.gs.
- */
 function isExemptNote(noteText) {
   if (!noteText) return false;
   let lower = noteText.toString().toLowerCase();
@@ -27,9 +23,6 @@ function isExemptNote(noteText) {
   return keywords.some(kw => lower.includes(kw.toLowerCase()));
 }
 
-/**
- * Purges any temporary sorting columns created past Column M (Col 13).
- */
 function deleteExtraColumns(sheetParam) {
   try {
     let sheet = sheetParam || SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Data Import");
@@ -66,10 +59,6 @@ function findRosterRange(sheet) {
   return { startRow: headerRow, rowCount: Math.max(trueLastMemberRow - headerRow + 1, 2), colCount: lastCol };
 }
 
-/**
- * Strips divider banner rows without altering roster order.
- * Called before imports to ensure a contiguous table.
- */
 function cleanAndSortRoster(sheetParam) {
   let sheet = sheetParam || SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Data Import") || SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   let lastRow = sheet.getLastRow();
@@ -91,12 +80,6 @@ function cleanAndSortRoster(sheetParam) {
   }
 }
 
-/**
- * Menu action:
- * 1. Deletes divider rows.
- * 2. Clears highlight fills on Member Name column (notes remain intact).
- * 3. Sorts roster by Rank Z-A (R5 -> R4 -> R3 -> R2 -> R1), then Member Name A-Z.
- */
 function menuVerifyAndRestore() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName("Data Import") || ss.getActiveSheet();
@@ -117,7 +100,6 @@ function menuVerifyAndRestore() {
   let numRows = rRange.rowCount - 1;
   let nameCol = nameColIdx + 1;
 
-  // Clear fills without touching rules or notes
   sheet.getRange(rRange.startRow + 1, nameCol, numRows, 1).setBackground(null);
 
   let sortCriteria = [];
@@ -139,7 +121,7 @@ function getTotalRosterCount(sheet) {
   let count = 0;
   for (let i = 0; i < values.length; i++) {
     let name = values[i][1] ? values[i][1].toString().trim() : "";
-    if (name !== "" && !name.startsWith("⚠️") && !name.startsWith("MISSING") && !name.startsWith("---")) count++;
+    if (name !== "" && !name.startsWith("⚠️") && !name.startsWith("MISSING")) count++;
   }
   return count;
 }
@@ -186,10 +168,6 @@ function showDebugSnippet() {
   SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(`<textarea readonly style="width:100vw;height:100vh;background:#1e1e1e;color:#9cdcfe;padding:10px;border:none;">${text}</textarea>`).setWidth(800).setHeight(500), "Debug Log");
 }
 
-/**
- * Safely clears background fills and SELECTIVELY clears import notes,
- * preserving manual notes (LOA, exempt, etc) and conditional formatting.
- */
 function clearAllHighlightsAndNotes() {
   let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Data Import") || SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   let rRange = findRosterRange(sheet);
@@ -225,10 +203,6 @@ function clearAllHighlightsAndNotes() {
   SpreadsheetApp.getActiveSpreadsheet().toast("Background fills and import notes cleared (manual notes preserved).", "🧹 Cleared Fills", 4);
 }
 
-/**
- * Menu action: Updates the 'Rank' column with values from 'New Rank'
- * on the currently active sheet (ideal for retroactive Archive fixes).
- */
 function menuUpdateRankWithNewRank() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getActiveSheet();
@@ -262,7 +236,7 @@ function menuUpdateRankWithNewRank() {
     }
   }
 
-  if (headerRow === -1 || rankCol === -1 || newRankCol !== -1 === false) {
+  if (headerRow === -1 || rankCol === -1 || newRankCol === -1) {
     SpreadsheetApp.getUi().alert(
       "Column Detection Failed",
       `Could not automatically locate both 'Rank' and 'New Rank' headers on "${sheet.getName()}".\n\n` +
