@@ -188,7 +188,8 @@ function mobileMenuHandler(e) {
       syncProjectToGitHub();
     }
 
-    // Reset dropdown back to default prompt after execution
+    // Brief pause to let Google Sheets catch up, then safely reset dropdown
+    Utilities.sleep(200);
     e.range.setValue("⚙️ Select Action...");
     SpreadsheetApp.flush();
   }
