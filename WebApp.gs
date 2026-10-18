@@ -26,7 +26,6 @@ function getDashboardData(viewLastWeek) {
   const lastRow = Math.max(3, sheet.getLastRow());
   const dataRange = sheet.getRange(3, 1, lastRow - 2, 13);
   const data = dataRange.getValues();
-  const notes = dataRange.getNotes(); 
 
   let members = [];
   let totalPower = 0;
@@ -60,15 +59,7 @@ function getDashboardData(viewLastWeek) {
     totalPower += power;
     totalWeekly += weekly;
 
-    let reason = String(row[12] || "").trim();
-    const nameNote = String(notes[index][1] || "");
-
-    if (nameNote.includes("Pending Removal") && !reason.includes("[Removal]")) {
-      reason = (reason ? reason + " " : "") + "[Removal]";
-    }
-    if (nameNote.includes("Demoted Last Week") && !reason.includes("[Demotion]")) {
-      reason = (reason ? reason + " " : "") + "[Demotion]";
-    }
+    const reason = String(row[12] || "").trim();
 
     members.push({
       id: "m" + index,
