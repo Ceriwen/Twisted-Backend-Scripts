@@ -61,6 +61,7 @@ const CONFIG = {
     "N0t th3 0n3": "NOt th3 On3",
     "McNasty D1": "McNastyyyyy",
     "McNasty": "McNastyyyyy",
+    "McNastyyyyy": "McNastyyyyy",
     "Loocslydna": "Loocsiydna",
     "At hutto D1": "At hutto D2",
     "SoulCollector0 D1": "Soulcollector0",
