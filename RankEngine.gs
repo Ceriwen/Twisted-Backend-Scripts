@@ -286,14 +286,22 @@ function runRankCalculationEngine(targetDayLabels, contextLabelMode) {
   ss.toast(`Rank calculations updated successfully (${contextLabelMode}).`, "🔮 Ranks Updated", 4);
 }
 
+/**
+ * Executes the Sunday End-of-Week Reset:
+ * - Updates Ranks
+ * - Increments/clears strike notes (demotions count & removal weeks)
+ * - Archives to 'Last Week' and Drive
+ * - Applies Amber highlights to flagged member names
+ */
 function executeSundayEowReset() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName("Data Import") || ss.getActiveSheet();
   let ui = SpreadsheetApp.getUi();
-  
-  if (Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), "EEEE") !== "Sunday" && ui.alert("⚠️ Boundary Warning", "Today is not Sunday. Proceed anyway?", ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
-  if (ui.alert("Confirm Sunday Reset", "Overwrite 'Last Week' tab, backup workbook, apply New Ranks, append Penalty Notes, and clear points?", ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
-  
+
+  if (Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), "EEEE") !== "Sunday" && 
+      ui.alert("⚠️ Boundary Warning", "Today is not Sunday. Proceed anyway?", ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  if (ui.alert("Confirm Sunday Reset", "Overwrite 'Last Week' tab, backup workbook, apply New Ranks, update Penalty/Strike Notes, and clear points?", ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+
   let today = new Date();
   let dayOfWeek = today.getDay();
   let targetSunday = new Date(today);
@@ -305,37 +313,68 @@ function executeSundayEowReset() {
   let rosterRange = findRosterRange(sheet);
   let values = sheet.getRange(rosterRange.startRow, 1, rosterRange.rowCount, rosterRange.colCount).getValues();
   let headers = values[0].map(h => h.toString().trim().toLowerCase());
-  
+
   let nameIdx = headers.findIndex(h => h.includes("member"));
   let rankIdx = headers.indexOf("rank");
   let newRankIdx = headers.findIndex(h => h.includes("new rank"));
   let reasonIdx = headers.findIndex(h => h.includes("reason") || h.includes("notes"));
-  
+
   let nameNotes = sheet.getRange(rosterRange.startRow, nameIdx + 1, rosterRange.rowCount, 1).getNotes();
   let preservedData = [];
-  
+
   for (let r = 1; r < values.length; r++) {
     let name = values[r][nameIdx];
     if (!name || name.toString().trim() === "") continue;
-    
+
     let currentRank = rankIdx > -1 ? values[r][rankIdx] : "";
     let newRank = newRankIdx > -1 ? values[r][newRankIdx] : "";
     let reason = reasonIdx > -1 ? values[r][reasonIdx].toString() : "";
-    let currentNote = nameNotes[r][0];
-    
+    let currentNote = nameNotes[r][0] || "";
+
     let finalRank = (newRank && newRank.toString().trim() !== "") ? newRank : currentRank;
-    
     let keepColor = false;
-    let finalNote = currentNote;
-    
-    if (reason.includes("[Removal]") || reason.includes("[Demotion]")) {
-      let strikeText = reason.includes("[Removal]") ? "⚠️ Pending Removal" : "⚠️ Demoted Last Week";
-      if (!finalNote.includes(strikeText)) {
-        finalNote = finalNote ? finalNote + "\n" + strikeText : strikeText;
-      }
+
+    // 1. Clean prior demotion line if present (give clean slate for new week)
+    let cleanNote = currentNote
+      .split("\n")
+      .filter(line => !line.includes("⚠️ Demoted Last Week"))
+      .join("\n")
+      .trim();
+
+    let finalNote = cleanNote;
+
+    // 2. Track Removals (Multi-week counter: Week 1, Week 2, etc.)
+    if (reason.includes("[Removal]")) {
+      let removalMatch = currentNote.match(/⚠️ Pending Removal \(Week (\d+)\)/);
+      let weekCount = removalMatch ? parseInt(removalMatch[1], 10) + 1 : 1;
+      
+      // Clean existing removal line before updating count
+      finalNote = finalNote
+        .split("\n")
+        .filter(line => !line.includes("⚠️ Pending Removal"))
+        .join("\n")
+        .trim();
+
+      let strikeText = `⚠️ Pending Removal (Week ${weekCount})`;
+      finalNote = finalNote ? `${finalNote}\n${strikeText}` : strikeText;
       keepColor = true;
+
+    // 3. Track Demotions (Multi-count counter: x1, x2, etc.)
+    } else if (reason.includes("[Demotion]")) {
+      let demoMatch = currentNote.match(/⚠️ Demoted Last Week \(x(\d+)\)/);
+      let demoCount = demoMatch ? parseInt(demoMatch[1], 10) + 1 : 1;
+      
+      let strikeText = `⚠️ Demoted Last Week (x${demoCount})`;
+      finalNote = finalNote ? `${finalNote}\n${strikeText}` : strikeText;
+      keepColor = true;
+    } else {
+      // If player maintained, promoted, or hit targets, clear removal/demotion highlights
+      // (Unless they have a manual exemption note like LOA/Vacation)
+      if (typeof isExemptNote === "function" && isExemptNote(finalNote)) {
+        keepColor = true;
+      }
     }
-    
+
     preservedData.push({
       row: r + rosterRange.startRow,
       rank: finalRank,
@@ -344,7 +383,7 @@ function executeSundayEowReset() {
     });
   }
 
-  // 1. Apply New Rank to the Rank column FIRST so the archives reflect updated ranks
+  // Apply New Rank to the Rank column FIRST so archives record actual promotions/demotions
   if (rankIdx > -1) {
     let startRow = rosterRange.startRow + 1;
     let numRows = rosterRange.rowCount - 1;
@@ -358,10 +397,10 @@ function executeSundayEowReset() {
     SpreadsheetApp.flush();
   }
 
-  // 2. Freeze updated state into 'Last Week' tab
+  // Freeze updated state into 'Last Week' tab
   let lastWeekSheet = ss.getSheetByName("Last Week");
   if (!lastWeekSheet) lastWeekSheet = ss.insertSheet("Last Week");
-  
+
   lastWeekSheet.clear();
   try {
     let sourceRange = sheet.getDataRange();
@@ -369,52 +408,55 @@ function executeSundayEowReset() {
     let bgs = sourceRange.getBackgrounds();
     let fcs = sourceRange.getFontColors();
     let fws = sourceRange.getFontWeights();
-    
+
     let targetRange = lastWeekSheet.getRange(1, 1, vals.length, vals[0].length);
     targetRange.setValues(vals);
     targetRange.setBackgrounds(bgs);
     targetRange.setFontColors(fcs);
     targetRange.setFontWeights(fws);
   } catch (e) {
-    ss.toast("Minor error freezing formatting, but data was backed up to Drive.", "Warning", 4);
+    ss.toast("Minor error freezing formatting, but data was backed up.", "Warning", 4);
   }
 
-  // 3. Create Drive archive backup workbook
+  // Create Drive archive backup copy
   let backup = DriveApp.getFileById(ss.getId()).makeCopy(`TWST Roster Archive - ${dateStr}`);
   let archiveTab = ss.getSheetByName("Archive Log") || ss.insertSheet("Archive Log");
-  if (archiveTab.getLastRow() === 0) archiveTab.getRange("A1:C1").setValues([["Archive Date", "Workbook Name", "Direct Link"]]).setFontWeight("bold");
+  if (archiveTab.getLastRow() === 0) {
+    archiveTab.getRange("A1:C1").setValues([["Archive Date", "Workbook Name", "Direct Link"]]).setFontWeight("bold");
+  }
   archiveTab.appendRow([dateStr, backup.getName(), `=HYPERLINK("${backup.getUrl()}", "Open Backup File")`]);
 
-  // 4. Clear scores and requirements for the fresh week
+  // Clear daily scores for the fresh week
   let colsToClear = ["mon", "tue", "wed", "thu", "fri", "sat", "donation", "weekly", "new rank", "reason", "notes"];
   let colIndicesToClear = [];
   headers.forEach((h, idx) => {
     if (colsToClear.some(c => h.includes(c))) colIndicesToClear.push(idx + 1);
   });
-  
+
   colIndicesToClear.forEach(col => {
     sheet.getRange(rosterRange.startRow + 1, col, rosterRange.rowCount - 1, 1).clearContent().setBackground(null).clearNote();
   });
-  
+
   sheet.getRange(rosterRange.startRow + 1, nameIdx + 1, rosterRange.rowCount - 1, 1).setBackground(null).clearNote();
-  
-  // 5. Reapply penalty notes and amber fills on Data Import
+
+  // Reapply updated notes and amber fills on Data Import
   if (preservedData.length > 0) {
     let startRow = rosterRange.startRow + 1;
     let numRows = rosterRange.rowCount - 1;
     let nameRange = sheet.getRange(startRow, nameIdx + 1, numRows, 1);
     let existingNotes = nameRange.getNotes();
     let existingBgs = nameRange.getBackgrounds();
+
     preservedData.forEach(p => {
       let rOffset = p.row - startRow;
       if (rOffset >= 0 && rOffset < numRows) {
-        if (p.note) existingNotes[rOffset][0] = p.note;
-        if (p.keepColor) existingBgs[rOffset][0] = CONFIG.COLORS.ELIMINATION_ALERT;
+        existingNotes[rOffset][0] = p.note;
+        existingBgs[rOffset][0] = p.keepColor ? CONFIG.COLORS.ELIMINATION_ALERT : null;
       }
     });
     nameRange.setNotes(existingNotes).setBackgrounds(existingBgs);
   }
-  
+
   emptyProcessedFolders(true);
   SpreadsheetApp.flush();
 
@@ -427,5 +469,5 @@ function executeSundayEowReset() {
     console.error("Discord webhook failed: " + e.message);
   }
 
-  ui.alert("Reset Complete", `Data Import safely frozen to 'Last Week'.\nNew Ranks applied, penalties moved to Name hover notes, and points cleared.`, ui.ButtonSet.OK);
+  ui.alert("Reset Complete", "Data Import safely frozen to 'Last Week'.\nNew Ranks applied, strikes updated in hover notes with Amber highlights, and points reset.", ui.ButtonSet.OK);
 }
