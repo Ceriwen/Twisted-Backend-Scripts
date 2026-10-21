@@ -1,5 +1,5 @@
 /**
- * Utils.gs - Shared Utility Functions & Mobile Event Handlers
+ * Utils.gs - Shared Utility Functions, Strike Backfill & Mobile Event Handlers
  * TWST Roster Management System
  */
 
@@ -80,40 +80,6 @@ function cleanAndSortRoster(sheetParam) {
   }
 }
 
-function menuVerifyAndRestore() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName("Data Import") || ss.getActiveSheet();
-
-  cleanAndSortRoster(sheet);
-  deleteExtraColumns(sheet);
-
-  let rRange = findRosterRange(sheet);
-  if (!rRange || rRange.rowCount <= 1) return;
-
-  let headerValues = sheet.getRange(rRange.startRow, 1, 1, rRange.colCount).getValues()[0];
-  let headers = headerValues.map(h => h.toString().trim().toLowerCase());
-
-  let nameColIdx = headers.findIndex(h => h.includes("member"));
-  if (nameColIdx === -1) nameColIdx = 1;
-  let rankColIdx = headers.indexOf("rank");
-
-  let numRows = rRange.rowCount - 1;
-  let nameCol = nameColIdx + 1;
-
-  sheet.getRange(rRange.startRow + 1, nameCol, numRows, 1).setBackground(null);
-
-  let sortCriteria = [];
-  if (rankColIdx > -1) {
-    sortCriteria.push({ column: rankColIdx + 1, ascending: false });
-  }
-  sortCriteria.push({ column: nameColIdx + 1, ascending: true });
-
-  sheet.getRange(rRange.startRow + 1, 1, numRows, rRange.colCount).sort(sortCriteria);
-  SpreadsheetApp.flush();
-
-  ss.toast("Roster restored: dividers removed, fills cleared, and sorted by Rank (Z-A).", "✅ Roster Restored", 5);
-}
-
 function getTotalRosterCount(sheet) {
   let range = findRosterRange(sheet);
   if (!range || range.rowCount <= 1) return 0;
@@ -129,22 +95,18 @@ function getTotalRosterCount(sheet) {
 function normalizeString(str) {
   if (!str) return "";
   let s = str.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  if (s.includes("☥") || s.includes("♀")) return "symbol_ankh";
-  return s.replace(/[\s,.\-_👑⚔️🛡️⚠️\[\]\(\)]/g, "").trim();
+  return s.replace(/[^a-z0-9]/g, "").trim();
 }
 
 function stripSquadTag(str) {
   if (!str) return "";
-  let clean = normalizeString(str);
-  if (clean === "symbol_ankh") return "symbol_ankh";
-  return clean.replace(/(?:[a-d][1-4][a-b]?)$/i, "").trim();
+  return str.toString().replace(/\[.*?\]\s*/g, "").trim();
 }
 
-function cleanNumericValues(textStr) {
-  if (typeof textStr === 'number') return Math.round(textStr);
-  if (!textStr) return 0;
-  let normalized = textStr.toString().toUpperCase().trim().replace(/\s+/g, "").replace(/O/g, "0");
-  if (normalized === "-" || normalized === "—" || normalized === "") return 0;
+function cleanNumericValues(val) {
+  if (val === null || val === undefined || val === "") return 0;
+  let normalized = val.toString().trim().toUpperCase();
+  if (normalized === "" || normalized === "-") return 0;
   if (normalized.includes("K")) return Math.round(parseFloat(normalized.replace("K", "").replace(/,/g, ".")) * 1000);
   if (normalized.includes("M")) return Math.round(parseFloat(normalized.replace("M", "").replace(/,/g, ".")) * 1000000);
   let parsed = parseFloat(normalized.replace(/,/g, ""));
@@ -165,42 +127,182 @@ function showDebugSnippet() {
     let values = debug.getRange(startRow, 1, (lastRow - startRow) + 1, 2).getValues();
     text = values.map(row => `${row[0]} | ${row[1]}`).join("\n");
   }
-  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(`<textarea readonly style="width:100vw;height:100vh;background:#1e1e1e;color:#9cdcfe;padding:10px;border:none;">${text}</textarea>`).setWidth(800).setHeight(500), "Debug Log");
+  SpreadsheetApp.getUi().showModalDialog(
+    HtmlService.createHtmlOutput(`<textarea readonly style="width:100vw;height:100vh;background:#1e1e1e;color:#9cdcfe;padding:10px;border:none;">${text}</textarea>`).setWidth(800).setHeight(500), 
+    "Debug Log"
+  );
 }
 
+/**
+ * SAFE CLEANUP:
+ * Clears daily score cells and OCR notes, but PRESERVES:
+ * - Amber highlights (#f5a623) on Member names
+ * - Strike / Penalty notes (⚠️ Pending Removal, ⚠️ Demoted Last Week)
+ * - Exemption notes (LOA, Vacation, etc.)
+ */
 function clearAllHighlightsAndNotes() {
   let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Data Import") || SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   let rRange = findRosterRange(sheet);
-
   if (!rRange || rRange.rowCount <= 1) return;
 
+  let headers = sheet.getRange(rRange.startRow, 1, 1, rRange.colCount).getValues()[0].map(h => h.toString().toLowerCase());
+  let nameColIdx = headers.findIndex(h => h.includes("member"));
+  if (nameColIdx === -1) nameColIdx = 1;
+
   let tableRange = sheet.getRange(rRange.startRow + 1, 1, rRange.rowCount - 1, rRange.colCount);
-  tableRange.setBackground(null);
-
+  let backgrounds = tableRange.getBackgrounds();
   let notes = tableRange.getNotes();
-  let notesModified = false;
 
-  for (let r = 0; r < notes.length; r++) {
-    for (let c = 0; c < notes[r].length; c++) {
-      let noteStr = notes[r][c];
+  const AMBER_COLOR = (CONFIG.COLORS.ELIMINATION_ALERT || "#f5a623").toLowerCase();
+
+  for (let r = 0; r < tableRange.getNumRows(); r++) {
+    for (let c = 0; c < tableRange.getNumColumns(); c++) {
+      let cellColor = (backgrounds[r][c] || "").toLowerCase();
+      let noteStr = notes[r][c] || "";
+
+      // Preserve Amber highlight on member column
+      if (c === nameColIdx && cellColor === AMBER_COLOR) {
+        // Keep Amber!
+      } else {
+        backgrounds[r][c] = null;
+      }
+
+      // Preserve Strike notes and Exemption notes
       if (noteStr) {
-        if (noteStr.includes("Matched & Verified") ||
-            noteStr.includes("Missing from all") ||
-            noteStr.includes("MEMBER NOT DETECTED") ||
-            noteStr.includes("New Member Added")) {
-          notes[r][c] = "";
-          notesModified = true;
+        let isStrike = noteStr.includes("⚠️ Pending Removal") || noteStr.includes("⚠️ Demoted Last Week");
+        let isExempt = isExemptNote(noteStr);
+
+        if (!isStrike && !isExempt) {
+          if (noteStr.includes("Matched & Verified") ||
+              noteStr.includes("Missing from all") ||
+              noteStr.includes("MEMBER NOT DETECTED") ||
+              noteStr.includes("New Member Added") ||
+              noteStr.includes("Score:")) {
+            notes[r][c] = "";
+          }
         }
       }
     }
   }
 
-  if (notesModified) {
-    tableRange.setNotes(notes);
+  tableRange.setBackgrounds(backgrounds);
+  tableRange.setNotes(notes);
+  SpreadsheetApp.flush();
+  SpreadsheetApp.getActiveSpreadsheet().toast("Cleared temporary score fills. Amber highlights & strike notes preserved.", "🧹 Cleaned", 4);
+}
+
+/**
+ * Temporary / Maintenance Tool:
+ * Scans past archive spreadsheets from the "Archive Log" tab and backfills:
+ * - Demotion counters (x1, x2, ...)
+ * - Removal week counters (Week 1, Week 2, ...)
+ * - Amber highlights on flagged members
+ */
+function backfillStrikeNotesFromArchives() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName("Data Import") || ss.getActiveSheet();
+  const archiveSheet = ss.getSheetByName("Archive Log");
+  const ui = SpreadsheetApp.getUi();
+
+  if (!archiveSheet || archiveSheet.getLastRow() < 2) {
+    ui.alert("Archive Log Empty", "Could not find past archives listed in the 'Archive Log' tab.", ui.ButtonSet.OK);
+    return;
   }
 
+  ui.toast("Scanning past archive workbooks...", "🔍 Backfill Running", 15);
+
+  let archiveData = archiveSheet.getRange(2, 1, archiveSheet.getLastRow() - 1, 3).getValues();
+  let memberHistory = {};
+
+  // Read each archive file in order
+  for (let a = 0; a < archiveData.length; a++) {
+    let linkFormula = archiveData[a][2] ? archiveData[a][2].toString() : "";
+    let idMatch = linkFormula.match(/d\/([a-zA-Z0-9_-]+)/);
+    if (!idMatch) continue;
+
+    try {
+      let archiveFile = SpreadsheetApp.openById(idMatch[1]);
+      let snapSheet = archiveFile.getSheetByName("Last Week") || archiveFile.getSheetByName("Data Import") || archiveFile.getSheets()[0];
+      if (!snapSheet) continue;
+
+      let rRange = findRosterRange(snapSheet);
+      let vals = snapSheet.getRange(rRange.startRow, 1, rRange.rowCount, rRange.colCount).getValues();
+      let hdrs = vals[0].map(h => h.toString().toLowerCase());
+      let nIdx = hdrs.findIndex(h => h.includes("member"));
+      let reasonIdx = hdrs.findIndex(h => h.includes("reason") || h.includes("notes"));
+
+      if (nIdx === -1 || reasonIdx === -1) continue;
+
+      for (let r = 1; r < vals.length; r++) {
+        let name = vals[r][nIdx] ? vals[r][nIdx].toString().trim() : "";
+        if (!name) continue;
+        let reason = vals[r][reasonIdx] ? vals[r][reasonIdx].toString() : "";
+
+        if (!memberHistory[name]) {
+          memberHistory[name] = { demotionCount: 0, consecutiveRemoval: 0 };
+        }
+
+        if (reason.includes("[Removal]")) {
+          memberHistory[name].consecutiveRemoval += 1;
+        } else {
+          memberHistory[name].consecutiveRemoval = 0;
+        }
+
+        if (reason.includes("[Demotion]")) {
+          memberHistory[name].demotionCount += 1;
+        }
+      }
+    } catch (e) {
+      console.error("Archive parse error: " + e.message);
+    }
+  }
+
+  // Apply to current Data Import sheet
+  let curRange = findRosterRange(sheet);
+  let curVals = sheet.getRange(curRange.startRow, 1, curRange.rowCount, curRange.colCount).getValues();
+  let curHdrs = curVals[0].map(h => h.toString().toLowerCase());
+  let nameCol = curHdrs.findIndex(h => h.includes("member")) + 1;
+
+  let nameRange = sheet.getRange(curRange.startRow + 1, nameCol, curRange.rowCount - 1, 1);
+  let notes = nameRange.getNotes();
+  let backgrounds = nameRange.getBackgrounds();
+  let updatedCount = 0;
+
+  for (let r = 1; r < curVals.length; r++) {
+    let name = curVals[r][nameCol - 1] ? curVals[r][nameCol - 1].toString().trim() : "";
+    let hist = memberHistory[name];
+    if (!hist) continue;
+
+    let existingNote = notes[r - 1][0] || "";
+    let cleanNote = existingNote
+      .split("\n")
+      .filter(line => !line.includes("⚠️ Demoted Last Week") && !line.includes("⚠️ Pending Removal"))
+      .join("\n")
+      .trim();
+
+    let strikeText = "";
+    let flagAmber = false;
+
+    if (hist.consecutiveRemoval > 0) {
+      strikeText = `⚠️ Pending Removal (Week ${hist.consecutiveRemoval})`;
+      flagAmber = true;
+    } else if (hist.demotionCount > 0) {
+      strikeText = `⚠️ Demoted Last Week (x${hist.demotionCount})`;
+      flagAmber = true;
+    }
+
+    if (strikeText) {
+      notes[r - 1][0] = cleanNote ? `${cleanNote}\n${strikeText}` : strikeText;
+      if (flagAmber) backgrounds[r - 1][0] = CONFIG.COLORS.ELIMINATION_ALERT || "#f5a623";
+      updatedCount++;
+    }
+  }
+
+  nameRange.setNotes(notes);
+  nameRange.setBackgrounds(backgrounds);
   SpreadsheetApp.flush();
-  SpreadsheetApp.getActiveSpreadsheet().toast("Background fills and import notes cleared (manual notes preserved).", "🧹 Cleared Fills", 4);
+
+  ui.alert("Backfill Complete", `Successfully synced strike history across past archives. Updated ${updatedCount} members with multi-week notes and amber highlights.`, ui.ButtonSet.OK);
 }
 
 function menuUpdateRankWithNewRank() {
@@ -209,10 +311,7 @@ function menuUpdateRankWithNewRank() {
   const lastRow = sheet.getLastRow();
   const lastCol = sheet.getLastColumn();
 
-  if (lastRow < 2) {
-    ss.toast("Sheet appears empty.", "⚠️ Notice", 3);
-    return;
-  }
+  if (lastRow < 2) return;
 
   const scanRows = Math.min(lastRow, 10);
   const headerData = sheet.getRange(1, 1, scanRows, lastCol).getValues();
@@ -236,21 +335,10 @@ function menuUpdateRankWithNewRank() {
     }
   }
 
-  if (headerRow === -1 || rankCol === -1 || newRankCol === -1) {
-    SpreadsheetApp.getUi().alert(
-      "Column Detection Failed",
-      `Could not automatically locate both 'Rank' and 'New Rank' headers on "${sheet.getName()}".\n\n` +
-      `Found: Rank (Col ${rankCol !== -1 ? rankCol : "Missing"}), New Rank (Col ${newRankCol !== -1 ? newRankCol : "Missing"}).`,
-      SpreadsheetApp.getUi().ButtonSet.OK
-    );
-    return;
-  }
+  if (headerRow === -1 || rankCol === -1 || newRankCol === -1) return;
 
   const numRows = lastRow - headerRow;
-  if (numRows <= 0) {
-    ss.toast("No roster rows found below the header.", "⚠️ Notice", 3);
-    return;
-  }
+  if (numRows <= 0) return;
 
   const newRankValues = sheet.getRange(headerRow + 1, newRankCol, numRows, 1).getValues();
   const currentRankRange = sheet.getRange(headerRow + 1, rankCol, numRows, 1);
@@ -267,6 +355,5 @@ function menuUpdateRankWithNewRank() {
 
   currentRankRange.setValues(currentRankValues);
   SpreadsheetApp.flush();
-
-  ss.toast(`Updated ${updatedCount} member ranks on "${sheet.getName()}".`, "✅ Ranks Updated", 4);
+  ss.toast(`Updated ${updatedCount} members to their new rank on "${sheet.getName()}".`, "✅ Ranks Updated", 5);
 }
