@@ -4,473 +4,614 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TWST Command Center</title>
+
+  <!-- Mobile Shortcut & Home Screen Icons -->
+  <link rel="icon" type="image/jpeg" href="https://lh3.googleusercontent.com/d/1F1aT5-mIVCKAf6VFToTZk0HS3tffI3hf=s512">
+  <link rel="apple-touch-icon" href="https://lh3.googleusercontent.com/d/1F1aT5-mIVCKAf6VFToTZk0HS3tffI3hf=s512">
+  <link rel="apple-touch-icon" sizes="180x180" href="https://lh3.googleusercontent.com/d/1F1aT5-mIVCKAf6VFToTZk0HS3tffI3hf=s512">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="TWST Ops">
+
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen p-4 sm:p-6 w-full mx-auto">
 
-  <div class="max-w-5xl mx-auto space-y-6">
-    
-    <!-- Top Header & Toggle -->
-    <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 border-b border-slate-800 gap-3">
+<div class="max-w-5xl mx-auto space-y-6">
+
+  <!-- Top Header & Week Switcher -->
+  <header class="flex flex-col md:flex-row justify-between items-start md:items-center pb-4 border-b border-slate-800 gap-4">
+    <!-- Brand Title with Integrated Emblem -->
+    <div class="flex items-center gap-3.5">
+      <img 
+        src="https://lh3.googleusercontent.com/d/1F1aT5-mIVCKAf6VFToTZk0HS3tffI3hf=s256" 
+        alt="TWST Ops Emblem" 
+        class="w-12 h-12 sm:w-14 sm:h-14 rounded-full border border-blue-500/40 shadow-lg shadow-blue-950/50 object-cover flex-shrink-0"
+      />
       <div>
-        <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-blue-400">
+        <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-blue-400 leading-tight">
           TWST<span class="text-white">Ops</span>
         </h1>
-        <p class="text-xs text-slate-400">Roster Management & Automation Hub</p>
+        <p class="text-xs text-slate-400 font-medium">Roster Management & Automation Hub</p>
       </div>
-      
-      <div class="flex flex-col sm:flex-row items-end sm:items-center gap-4">
-        <button onclick="toggleAdmin()" class="text-xs text-slate-500 hover:text-slate-300 font-medium transition-colors">
-          🔒 Leadership Unlock
-        </button>
-        
-        <!-- RESTORED: Time Machine Toggle -->
-        <div class="flex items-center gap-3">
-          <div class="flex bg-slate-900 border border-slate-700 rounded-lg p-1">
-            <button id="btn-current" onclick="switchView(false)" class="px-3 py-1 text-xs font-bold rounded bg-blue-600 text-white shadow transition-colors">Current</button>
-            <button id="btn-archive" onclick="switchView(true)" class="px-3 py-1 text-xs font-bold rounded text-slate-400 hover:text-slate-200 transition-colors">Archive</button>
+    </div>
+
+    <!-- Controls Area: Leadership + Week Switcher -->
+    <div class="flex flex-col items-start md:items-end gap-2 w-full md:w-auto">
+      <button onclick="toggleAdmin()" class="text-xs text-slate-500 hover:text-slate-300 font-medium transition-colors self-end md:self-auto">
+        🔒 Leadership Unlock
+      </button>
+
+      <!-- Week Selector: Live vs Last Week -->
+      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 bg-slate-900/90 border border-slate-800 rounded-xl p-1.5 px-3 shadow">
+        <div class="text-[11px] text-slate-400 font-medium flex items-center gap-1.5">
+          <span>📅</span>
+          <span>View:</span>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <div class="flex bg-slate-950 border border-slate-700/80 rounded-lg p-0.5">
+            <button id="btn-current" onclick="switchView(false)" class="px-3 py-1 text-xs font-bold rounded bg-blue-600 text-white shadow transition-colors">
+              Live
+            </button>
+            <button id="btn-archive" onclick="switchView(true)" class="px-3 py-1 text-xs font-bold rounded text-slate-400 hover:text-slate-200 transition-colors">
+              Last Week
+            </button>
           </div>
-          
-          <div id="status-badge" class="flex items-center gap-2 px-3 py-1 bg-slate-900 border border-slate-700 text-slate-300 text-xs font-semibold rounded-full min-w-[110px] justify-center transition-colors">
+
+          <div id="status-badge" class="flex items-center gap-1.5 px-2.5 py-1 bg-slate-950 border border-slate-700 text-slate-300 text-[11px] font-semibold rounded-full min-w-[95px] justify-center transition-colors">
             <span id="status-badge-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
             <span id="status-badge-text">Live Data</span>
           </div>
         </div>
       </div>
-    </header>
-
-    <!-- Admin Unlock Panel -->
-    <section id="admin-login" class="hidden bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg text-center border-l-4 border-l-blue-500">
-      <p class="text-xs text-slate-400 mb-2">Enter R4/R5 Password to reveal upload tools</p>
-      <div class="flex justify-center gap-2 max-w-sm mx-auto">
-        <input type="password" id="admin-pass" placeholder="Password" class="w-full bg-slate-950 border border-slate-700 text-slate-300 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500">
-        <button onclick="unlockTools()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg text-sm">Unlock</button>
-      </div>
-    </section>
-
-    <!-- Leadership Controls -->
-    <div id="leadership-controls" class="hidden space-y-6">
-      <section class="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-lg border-l-4 border-l-emerald-500">
-        <h2 class="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-3">Data Uploads</h2>
-        <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-          <input type="file" id="file-input" multiple accept="image/*" class="w-full sm:w-auto text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-900/30 file:text-emerald-400 hover:file:bg-emerald-900/50 cursor-pointer transition-colors"/>
-          <button id="btn-upload" onclick="handleFileUpload()" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold py-2 px-5 rounded-lg shadow-md transition duration-150 flex items-center justify-center gap-2 text-sm whitespace-nowrap">
-            <span>📤</span> Upload to Inbox
-          </button>
-        </div>
-        <div id="upload-status" class="hidden mt-3 p-3 text-xs rounded-lg"></div>
-      </section>
-
-      <section class="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-lg border-l-4 border-l-blue-500">
-        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Automation Controls</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <button id="btn-run-batch" onclick="triggerAIBatch()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg shadow-md text-sm">
-            <span>⚡</span> Run AI Screenshot Import
-          </button>
-          <button onclick="fetchRosterData()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold py-3 px-4 rounded-lg shadow-md text-sm">
-            <span>⟳</span> Refresh Roster Data
-          </button>
-        </div>
-        <div id="action-status" class="hidden mt-3 p-3 text-xs rounded-lg"></div>
-      </section>
     </div>
+  </header>
 
-    <!-- Alliance Rules Section -->
-    <section class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
-      <div class="p-4 border-b border-slate-800 bg-slate-950">
-        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">📋 TWST Target Thresholds & Policy Rules</h2>
+  <!-- Admin Unlock Panel -->
+  <section id="admin-login" class="hidden bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg text-center border-l-4 border-l-blue-500">
+    <p class="text-xs text-slate-400 mb-2">Enter R4/R5 Password to reveal upload tools</p>
+    <div class="flex justify-center gap-2 max-w-sm mx-auto">
+      <input type="password" id="admin-pass" placeholder="Password" class="w-full bg-slate-950 border border-slate-700 text-slate-300 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500">
+      <button onclick="unlockTools()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg text-sm">Unlock</button>
+    </div>
+  </section>
+
+  <!-- Leadership Controls -->
+  <div id="leadership-controls" class="hidden space-y-6">
+    <section class="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-lg border-l-4 border-l-emerald-500">
+      <h2 class="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-3">Data Uploads</h2>
+      <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+        <input type="file" id="file-input" multiple accept="image/*" class="w-full sm:w-auto text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-900/30 file:text-emerald-400 hover:file:bg-emerald-900/50 cursor-pointer transition-colors"/>
+        <button id="btn-upload" onclick="handleFileUpload()" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold py-2 px-5 rounded-lg shadow-md transition duration-150 flex items-center justify-center gap-2 text-sm whitespace-nowrap">
+          <span>📤</span> Upload to Inbox
+        </button>
       </div>
-      <div class="p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 text-sm">
-        <div>
-          <h3 class="font-bold text-blue-400 mb-1">🎯 Daily Targets</h3>
-          <p class="text-slate-300 mb-2"><strong class="text-white">3,600,000 VS Pts/Day</strong><br><span class="text-xs text-slate-400">Mandatory daily target. Under 3.6M marks a missed day.</span></p>
-          <p class="text-slate-300"><strong class="text-white">3,000 Tech Pts</strong><br><span class="text-xs text-slate-400">Mandatory daily alliance donation target.</span></p>
-        </div>
-        <div>
-          <h3 class="font-bold text-emerald-400 mb-1">🌟 Top Performance</h3>
-          <p class="text-slate-300 mb-2"><strong class="text-white">🔥 Crushed It!:</strong> 7.2M VS pts & 6k tech (Double target).</p>
-          <p class="text-slate-300"><strong class="text-white">🌟 Perfect:</strong> 0 Missed Days (All days ≥ 3.6M and donations met).</p>
-        </div>
-        <div>
-          <h3 class="font-bold text-amber-400 mb-1">🛡️ Rank Standing</h3>
-          <p class="text-slate-300 mb-2"><strong class="text-white">Maintained:</strong> < 3 Missed Days. Allows 1-2 missed targets.</p>
-          <p class="text-slate-300"><strong class="text-white">⬆️ Promotion:</strong> R1/R2 restored to R3 upon hitting performance goals.</p>
-        </div>
-        <div>
-          <h3 class="font-bold text-red-400 mb-1">⚠️ Penalties</h3>
-          <p class="text-slate-300"><strong class="text-white">Demotion Threshold:</strong> ≥ 3 Missed Targets. Failing daily VS and/or Donations on 3+ days triggers automated demotion or removal.</p>
-        </div>
-      </div>
+      <div id="upload-status" class="hidden mt-3 p-3 text-xs rounded-lg"></div>
     </section>
 
-    <!-- RESTORED: High-Level Alliance Overview (5 KPIs) -->
-    <section class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
-      <div class="p-4 border-b border-slate-800 bg-slate-950 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div>
-          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">📈 Key Performance Indicators</h2>
-          <p class="text-[11px] text-slate-500 mt-0.5">Core performance and roster capacity metrics.</p>
-        </div>
+    <section class="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-lg border-l-4 border-l-blue-500">
+      <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Automation Controls</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <button id="btn-run-batch" onclick="triggerAIBatch()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg shadow-md text-sm">
+          <span>⚡</span> Run AI Screenshot Import
+        </button>
+        <button onclick="fetchRosterData()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold py-3 px-4 rounded-lg shadow-md text-sm">
+          <span>⟳</span> Refresh Roster Data
+        </button>
       </div>
-      <div class="p-5">
-        <div id="overview-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-          <!-- Rendered via JS -->
-        </div>
-      </div>
+      <div id="action-status" class="hidden mt-3 p-3 text-xs rounded-lg"></div>
     </section>
-
-    <!-- RESTORED: Roster Snapshot & Filters Section -->
-    <section class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
-      <div class="p-4 border-b border-slate-800 bg-slate-950 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div>
-          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">🗂️ Roster Snapshot & Filters</h2>
-          <p class="text-[11px] text-slate-500 mt-0.5">Click any of the highlighted tag boxes below to filter the roster list instantly.</p>
-        </div>
-      </div>
-      <div class="p-5">
-        <div id="filter-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <!-- Rendered via JS -->
-        </div>
-      </div>
-    </section>
-
-    <!-- Member Roster Section -->
-    <section class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
-      <div class="p-4 border-b border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div>
-          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Alliance Roster</h2>
-          <p class="text-[11px] text-slate-500 mt-0.5">Tap any row to expand details.</p>
-        </div>
-        <div class="flex gap-2 w-full sm:w-auto">
-          <input type="text" id="search-input" onkeyup="filterRoster()" placeholder="Search name, rank, or tag..." class="w-full sm:w-64 bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"/>
-          <button onclick="clearFilters()" class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 border border-slate-700 text-slate-300 font-medium text-xs rounded-lg px-4 py-2 transition-colors">Reset</button>
-        </div>
-      </div>
-      <div id="roster-container" class="p-6 text-center">
-        <span class="text-slate-400 text-sm font-medium">Fetching spreadsheet data...</span>
-      </div>
-    </section>
-
   </div>
 
-  <script>
-    let rawMembers = [];
-    let currentStats = {};
-    let currentTagFilter = "";
-    let activePassword = "";
-    let showingArchive = false; 
+  <!-- Alliance Rules Section -->
+  <section class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+    <div class="p-4 border-b border-slate-800 bg-slate-950">
+      <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">📋 TWST Target Thresholds & Policy Rules</h2>
+    </div>
+    <div class="p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 text-sm">
+      <div>
+        <h3 class="font-bold text-blue-400 mb-1">🎯 Daily Targets</h3>
+        <p class="text-slate-300 mb-2"><strong class="text-white">3,600,000 VS Pts/Day</strong><br><span class="text-xs text-slate-400">Mandatory daily target. Under 3.6M marks a missed day.</span></p>
+        <p class="text-slate-300"><strong class="text-white">3,000 Tech Pts</strong><br><span class="text-xs text-slate-400">Mandatory daily alliance donation target.</span></p>
+      </div>
+      <div>
+        <h3 class="font-bold text-emerald-400 mb-1">🌟 Top Performance</h3>
+        <p class="text-slate-300 mb-2"><strong class="text-white">🔥 Crushed It!:</strong> 7.2M VS pts & 6k tech (Double target).</p>
+        <p class="text-slate-300"><strong class="text-white">🌟 Perfect:</strong> 0 Missed Days (All days ≥ 3.6M and donations met).</p>
+      </div>
+      <div>
+        <h3 class="font-bold text-amber-400 mb-1">🛡️ Rank Standing</h3>
+        <p class="text-slate-300 mb-2"><strong class="text-white">Maintained:</strong> &lt; 3 Missed Days. Allows 1–2 missed targets.</p>
+        <p class="text-slate-300"><strong class="text-white">⬆️ Promotion:</strong> R1/R2 restored to R3 upon hitting performance goals.</p>
+      </div>
+      <div>
+        <h3 class="font-bold text-red-400 mb-1">⚠️ Penalties</h3>
+        <p class="text-slate-300"><strong class="text-white">Demotion Threshold:</strong> ≥ 3 Missed Targets. Failing daily VS and/or Donations on 3+ days triggers automated demotion or removal.</p>
+      </div>
+    </div>
+  </section>
 
-    // Auto-load archive parameter
-    const autoLoadArchive = <?= forceArchive ?>;
+  <!-- KPI Section -->
+  <section class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+    <div class="p-4 border-b border-slate-800 bg-slate-950 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+      <div>
+        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">📈 Key Performance Indicators</h2>
+        <p class="text-[11px] text-slate-500 mt-0.5">Core performance and roster capacity metrics.</p>
+      </div>
+    </div>
+    <div class="p-5">
+      <div id="overview-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+  </section>
 
-    window.addEventListener('DOMContentLoaded', () => {
-      if (autoLoadArchive) {
-        switchView(true);
-      } else {
-        fetchRosterData();
-      }
-    });
+  <!-- Roster Snapshot & Filters Section -->
+  <section class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+    <div class="p-4 border-b border-slate-800 bg-slate-950 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+      <div>
+        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">🗂️ Roster Snapshot & Filters</h2>
+        <p class="text-[11px] text-slate-500 mt-0.5">Click any of the highlighted tag boxes below to filter the roster list instantly.</p>
+      </div>
+    </div>
+    <div class="p-5">
+      <div id="filter-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+  </section>
 
-    function toggleAdmin() {
-      const panel = document.getElementById('admin-login');
-      panel.classList.toggle('hidden');
-    }
+  <!-- Member Roster Section -->
+  <section class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+    <div class="p-4 border-b border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+      <div>
+        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Alliance Roster</h2>
+        <p class="text-[11px] text-blue-400 mt-0.5 font-medium">💡 Tap any member row to expand their daily score breakdown and career history.</p>
+      </div>
+      <div class="flex gap-2 w-full sm:w-auto">
+        <input type="text" id="search-input" onkeyup="filterRoster()" placeholder="Search name, rank, or tag..." class="w-full sm:w-64 bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"/>
+        <button onclick="clearFilters()" class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 border border-slate-700 text-slate-300 font-medium text-xs rounded-lg px-4 py-2 transition-colors">Reset</button>
+      </div>
+    </div>
+    <div id="roster-container" class="p-6 text-center">
+      <span class="text-slate-400 text-sm font-medium">Fetching spreadsheet data...</span>
+    </div>
+  </section>
 
-    function unlockTools() {
-      const pass = document.getElementById('admin-pass').value;
-      if (pass) {
-        activePassword = pass;
-        document.getElementById('admin-login').classList.add('hidden');
-        document.getElementById('leadership-controls').classList.remove('hidden');
-      }
-    }
+</div>
 
-    function switchView(toArchive) {
-      if (showingArchive === toArchive) return;
-      showingArchive = toArchive;
-      
-      const btnCurrent = document.getElementById('btn-current');
-      const btnArchive = document.getElementById('btn-archive');
-      const badge = document.getElementById('status-badge');
-      const badgeDot = document.getElementById('status-badge-dot');
-      const badgeText = document.getElementById('status-badge-text');
+<script>
+let rawMembers = [];
+let currentStats = {};
+let currentTagFilter = "";
+let activePassword = "";
+let showingArchive = false;
 
-      if (toArchive) {
-        btnArchive.className = "px-3 py-1 text-xs font-bold rounded bg-emerald-600 text-white shadow transition-colors";
-        btnCurrent.className = "px-3 py-1 text-xs font-bold rounded text-slate-400 hover:text-slate-200 transition-colors";
-        badge.className = "flex items-center gap-2 px-3 py-1 bg-emerald-950/40 border border-emerald-800/60 text-emerald-500 text-xs font-semibold rounded-full min-w-[110px] justify-center transition-colors";
-        badgeDot.className = "w-2 h-2 rounded-full bg-emerald-500"; 
-        badgeText.textContent = "Archived Data";
-      } else {
-        btnCurrent.className = "px-3 py-1 text-xs font-bold rounded bg-blue-600 text-white shadow transition-colors";
-        btnArchive.className = "px-3 py-1 text-xs font-bold rounded text-slate-400 hover:text-slate-200 transition-colors";
-        badge.className = "flex items-center gap-2 px-3 py-1 bg-slate-900 border border-slate-700 text-slate-300 text-xs font-semibold rounded-full min-w-[110px] justify-center transition-colors";
-        badgeDot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-ping";
-        badgeText.textContent = "Live Data";
-      }
+const autoLoadArchive = <?= forceArchive ?>;
 
-      clearFilters(); 
+window.addEventListener('DOMContentLoaded', () => {
+  if (autoLoadArchive) {
+    switchView(true);
+  } else {
+    fetchRosterData();
+  }
+});
+
+function toggleAdmin() {
+  const panel = document.getElementById('admin-login');
+  panel.classList.toggle('hidden');
+}
+
+function unlockTools() {
+  const pass = document.getElementById('admin-pass').value;
+  if (pass) {
+    activePassword = pass;
+    document.getElementById('admin-login').classList.add('hidden');
+    document.getElementById('leadership-controls').classList.remove('hidden');
+  }
+}
+
+function switchView(toArchive) {
+  if (showingArchive === toArchive) return;
+  showingArchive = toArchive;
+
+  const btnCurrent = document.getElementById('btn-current');
+  const btnArchive = document.getElementById('btn-archive');
+  const badge = document.getElementById('status-badge');
+  const badgeDot = document.getElementById('status-badge-dot');
+  const badgeText = document.getElementById('status-badge-text');
+
+  if (toArchive) {
+    btnArchive.className = "px-3 py-1 text-xs font-bold rounded bg-emerald-600 text-white shadow transition-colors";
+    btnCurrent.className = "px-3 py-1 text-xs font-bold rounded text-slate-400 hover:text-slate-200 transition-colors";
+    badge.className = "flex items-center gap-1.5 px-2.5 py-1 bg-emerald-950/40 border border-emerald-800/60 text-emerald-400 text-[11px] font-semibold rounded-full min-w-[95px] justify-center transition-colors";
+    badgeDot.className = "w-2 h-2 rounded-full bg-emerald-500";
+    badgeText.textContent = "Last Week";
+  } else {
+    btnCurrent.className = "px-3 py-1 text-xs font-bold rounded bg-blue-600 text-white shadow transition-colors";
+    btnArchive.className = "px-3 py-1 text-xs font-bold rounded text-slate-400 hover:text-slate-200 transition-colors";
+    badge.className = "flex items-center gap-1.5 px-2.5 py-1 bg-slate-950 border border-slate-700 text-slate-300 text-[11px] font-semibold rounded-full min-w-[95px] justify-center transition-colors";
+    badgeDot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-ping";
+    badgeText.textContent = "Live Data";
+  }
+
+  clearFilters();
+  fetchRosterData();
+}
+
+function triggerAIBatch() {
+  const btn = document.getElementById('btn-run-batch');
+  btn.disabled = true; btn.innerHTML = '<span>⏳</span> Processing...';
+  const statusBox = document.getElementById('action-status');
+  statusBox.className = "mt-3 p-3 text-xs rounded-lg bg-blue-950/60 border border-blue-800 text-blue-300 block";
+  statusBox.textContent = "AI job initiated...";
+
+  google.script.run
+    .withSuccessHandler(() => {
+      btn.disabled = false; btn.innerHTML = '<span>⚡</span> Run AI Screenshot Import';
+      statusBox.textContent = "Completed successfully. Refreshing roster...";
       fetchRosterData();
+    })
+    .withFailureHandler(err => {
+      btn.disabled = false; btn.innerHTML = '<span>⚡</span> Run AI Screenshot Import';
+      statusBox.className = "mt-3 p-3 text-xs rounded-lg bg-red-950/60 border border-red-800 text-red-300 block";
+      statusBox.textContent = err.message;
+    })
+    .runAIBatchFromApp(activePassword);
+}
+
+async function handleFileUpload() {
+  const fileInput = document.getElementById('file-input');
+  const btn = document.getElementById('btn-upload');
+
+  if (!fileInput.files || fileInput.files.length === 0) return;
+
+  btn.disabled = true; btn.innerHTML = '<span>⏳</span> Preparing...';
+  const filesData = [];
+  try {
+    for (let file of fileInput.files) {
+      const reader = new FileReader();
+      const data = await new Promise(res => { reader.onload = () => res(reader.result); reader.readAsDataURL(file); });
+      filesData.push({ name: file.name, mimeType: file.type, data: data.split(',')[1] });
     }
+  } catch (err) { return showUploadStatus("Read error.", "red"); }
 
-    function triggerAIBatch() {
-      const btn = document.getElementById('btn-run-batch');
-      btn.disabled = true; btn.innerHTML = '<span>⏳</span> Processing...';
-      const statusBox = document.getElementById('action-status');
-      statusBox.className = "mt-3 p-3 text-xs rounded-lg bg-blue-950/60 border border-blue-800 text-blue-300 block";
-      statusBox.textContent = "AI job initiated...";
-      
-      google.script.run
-        .withSuccessHandler(() => {
-          btn.disabled = false; btn.innerHTML = '<span>⚡</span> Run AI Screenshot Import';
-          statusBox.textContent = "Completed successfully. Refreshing roster...";
-          fetchRosterData();
-        })
-        .withFailureHandler(err => {
-          btn.disabled = false; btn.innerHTML = '<span>⚡</span> Run AI Screenshot Import';
-          statusBox.className = "mt-3 p-3 text-xs rounded-lg bg-red-950/60 border border-red-800 text-red-300 block";
-          statusBox.textContent = err.message;
-        })
-        .runAIBatchFromApp(activePassword);
-    }
-
-    async function handleFileUpload() {
-      const fileInput = document.getElementById('file-input');
-      const btn = document.getElementById('btn-upload');
-
-      if (!fileInput.files || fileInput.files.length === 0) return;
-
-      btn.disabled = true; btn.innerHTML = '<span>⏳</span> Preparing...';
-      const filesData = [];
-      try {
-        for (let file of fileInput.files) {
-          const reader = new FileReader();
-          const data = await new Promise(res => { reader.onload = () => res(reader.result); reader.readAsDataURL(file); });
-          filesData.push({ name: file.name, mimeType: file.type, data: data.split(',')[1] });
-        }
-      } catch (err) { return showUploadStatus("Read error.", "red"); }
-
-      btn.innerHTML = '<span>⏳</span> Uploading...';
-      google.script.run
-        .withSuccessHandler(res => {
-          btn.disabled = false; btn.innerHTML = '<span>📤</span> Upload to Inbox';
-          if (res.success) { 
-            showUploadStatus(`Successfully uploaded ${res.count} screenshots!`, "emerald"); 
-            fileInput.value = ''; 
-          } else {
-            showUploadStatus(res.error, "red");
-          }
-        })
-        .withFailureHandler(err => {
-          btn.disabled = false; btn.innerHTML = '<span>📤</span> Upload to Inbox';
-          showUploadStatus(err.message, "red");
-        }).uploadFilesToDrive(filesData, activePassword); 
-    }
-
-    function fetchRosterData() {
-      document.getElementById('roster-container').innerHTML = '<p class="text-slate-400 text-sm py-4">Fetching spreadsheet data...</p>';
-      google.script.run
-        .withSuccessHandler(renderDashboard)
-        .withFailureHandler(showError)
-        .getDashboardData(showingArchive); 
-    }
-
-    function renderDashboard(payload) {
-      rawMembers = payload.members || [];
-      currentStats = payload.stats || {};
-      renderOverview();
-      renderFilterGrid();
-      filterRoster();
-    }
-
-    function renderOverview() {
-      let compliantCount = 0;
-      let totalMembers = rawMembers.length;
-      let totalWeekly = 0;
-      let totalDonations = 0;
-      let totalPower = 0;
-      
-      const parseNum = (val) => parseFloat(String(val).replace(/[^0-9.-]+/g, "")) || 0;
-
-      rawMembers.forEach(m => {
-        const r = String(m.reason || "");
-        if (!r.includes("[Demotion]") && !r.includes("[Removal]")) {
-          compliantCount++;
-        }
-        totalWeekly += parseNum(m.weekly);
-        totalDonations += parseNum(m.donations);
-        totalPower += parseNum(m.power);
-      });
-
-      const formatSuffix = (num) => {
-        if (num >= 1000000000) return (num / 1000000000).toFixed(2) + "B";
-        if (num >= 1000000) return (num / 1000000).toFixed(2) + "M";
-        if (num >= 1000) return (num / 1000).toFixed(1) + "K";
-        return num.toLocaleString();
-      };
-
-      const healthPct = totalMembers > 0 ? Math.round((compliantCount / totalMembers) * 100) : 0;
-      const healthColor = healthPct >= 90 ? "text-emerald-400" : (healthPct >= 75 ? "text-amber-400" : "text-red-400");
-      const capacitySubtext = totalMembers >= 100 ? "100% Full Capacity" : "Recruiting";
-
-      document.getElementById('overview-grid').innerHTML = `
-        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow flex flex-col justify-center items-center sm:items-start text-center sm:text-left">
-          <p class="text-[11px] text-slate-400 uppercase tracking-wide font-bold mb-1">Alliance Health</p>
-          <p class="text-2xl font-black ${healthColor}">${healthPct}%</p>
-          <span class="block text-[10px] text-slate-500 mt-1">${healthPct}% Compliant</span>
-        </div>
-        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow flex flex-col justify-center items-center sm:items-start text-center sm:text-left">
-          <p class="text-[11px] text-slate-400 uppercase tracking-wide font-bold mb-1">Roster Capacity</p>
-          <p class="text-2xl font-black text-blue-400">${totalMembers} / 100</p>
-          <span class="block text-[10px] text-slate-500 mt-1">${capacitySubtext}</span>
-        </div>
-        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow flex flex-col justify-center items-center sm:items-start text-center sm:text-left">
-          <p class="text-[11px] text-slate-400 uppercase tracking-wide font-bold mb-1">Total Power</p>
-          <p class="text-2xl font-black text-white">${formatSuffix(totalPower)}</p>
-          <span class="block text-[10px] text-slate-500 mt-1">Active Combat Power</span>
-        </div>
-        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow flex flex-col justify-center items-center sm:items-start text-center sm:text-left">
-          <p class="text-[11px] text-slate-400 uppercase tracking-wide font-bold mb-1">Weekly VS Score</p>
-          <p class="text-2xl font-black text-purple-400">${formatSuffix(totalWeekly)}</p>
-          <span class="block text-[10px] text-slate-500 mt-1">Current Week Total</span>
-        </div>
-        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow flex flex-col justify-center items-center sm:items-start text-center sm:text-left">
-          <p class="text-[11px] text-slate-400 uppercase tracking-wide font-bold mb-1">Alliance Donations</p>
-          <p class="text-2xl font-black text-amber-400">${formatSuffix(totalDonations)}</p>
-          <span class="block text-[10px] text-slate-500 mt-1">Alliance Tech Total</span>
-        </div>
-      `;
-    }
-
-    function setTagFilter(tag) {
-      if (currentTagFilter === tag) {
-        currentTagFilter = ""; 
+  btn.innerHTML = '<span>⏳</span> Uploading...';
+  google.script.run
+    .withSuccessHandler(res => {
+      btn.disabled = false; btn.innerHTML = '<span>📤</span> Upload to Inbox';
+      if (res.success) {
+        showUploadStatus(`Successfully uploaded ${res.count} screenshots!`, "emerald");
+        fileInput.value = '';
       } else {
-        currentTagFilter = tag; 
-        document.getElementById('search-input').value = ""; 
+        showUploadStatus(res.error, "red");
       }
-      renderFilterGrid();
-      filterRoster();
+    })
+    .withFailureHandler(err => {
+      btn.disabled = false; btn.innerHTML = '<span>📤</span> Upload to Inbox';
+      showUploadStatus(err.message, "red");
+    }).uploadFilesToDrive(filesData, activePassword);
+}
+
+function fetchRosterData() {
+  document.getElementById('roster-container').innerHTML = '<p class="text-slate-400 text-sm py-4">Fetching spreadsheet data...</p>';
+  google.script.run
+    .withSuccessHandler(renderDashboard)
+    .withFailureHandler(showError)
+    .getDashboardData(showingArchive);
+}
+
+function renderDashboard(payload) {
+  rawMembers = payload.members || [];
+  currentStats = payload.stats || {};
+  renderOverview();
+  renderFilterGrid();
+  filterRoster();
+}
+
+function renderOverview() {
+  let compliantCount = 0;
+  let totalMembers = rawMembers.length;
+  let totalWeekly = 0;
+  let totalDonations = 0;
+  let totalPower = 0;
+
+  const parseNum = (val) => parseFloat(String(val).replace(/[^0-9.-]+/g, "")) || 0;
+
+  rawMembers.forEach(m => {
+    const r = String(m.reason || "");
+    if (!r.includes("[Demotion]") && !r.includes("[Removal]")) {
+      compliantCount++;
     }
+    totalWeekly += parseNum(m.weekly);
+    totalDonations += parseNum(m.donations);
+    totalPower += parseNum(m.power);
+  });
 
-    function clearFilters() {
-      currentTagFilter = "";
-      document.getElementById('search-input').value = "";
-      renderFilterGrid();
-      filterRoster();
-    }
+  const formatSuffix = (num) => {
+    if (num >= 1000000000) return (num / 1000000000).toFixed(2) + "B";
+    if (num >= 1000000) return (num / 1000000).toFixed(2) + "M";
+    if (num >= 1000) return (num / 1000).toFixed(1) + "K";
+    return num.toLocaleString();
+  };
 
-    function renderFilterGrid() {
-      let counts = { crushed: 0, perfect: 0, promo: 0, maint: 0, new: 0, exempt: 0, demo: 0, removal: 0 };
-      rawMembers.forEach(m => {
-        const r = String(m.reason || "");
-        if (r.includes("[Crushed It!]")) counts.crushed++;
-        if (r.includes("[Perfect]")) counts.perfect++;
-        if (r.includes("[Promotion]")) counts.promo++;
-        if (r.includes("[Maintained]")) counts.maint++;
-        if (r.includes("[New Member]")) counts.new++;
-        if (r.includes("[Exempt]")) counts.exempt++;
-        if (r.includes("[Demotion]")) counts.demo++;
-        if (r.includes("[Removal]")) counts.removal++;
-      });
+  const healthPct = totalMembers > 0 ? Math.round((compliantCount / totalMembers) * 100) : 0;
+  const healthColor = healthPct >= 90 ? "text-emerald-400" : (healthPct >= 75 ? "text-amber-400" : "text-red-400");
+  const capacitySubtext = totalMembers >= 100 ? "100% Full Capacity" : "Recruiting";
 
-      const makeBox = (label, value, textColor, borderColor, filterTag) => {
-        const isActive = currentTagFilter === filterTag;
-        const bgClass = isActive ? 'bg-slate-800 ring-2 ring-blue-500 shadow-lg' : 'bg-slate-900/50';
-        
-        return `
-          <div onclick="setTagFilter('${filterTag}')" class="${bgClass} cursor-pointer hover:bg-slate-800 hover:-translate-y-0.5 border ${borderColor} p-3 rounded-xl shadow text-center sm:text-left flex flex-col justify-center items-center sm:items-start min-h-[85px] transition-all duration-200">
-            <p class="text-[11px] text-slate-400 uppercase tracking-wide font-semibold mb-1">${label}</p>
-            <p class="text-xl font-black ${textColor}">${value}</p>
-            <span class="block text-[9px] text-slate-500 font-medium normal-case tracking-normal mt-1 opacity-60">👆 Click to filter</span>
-          </div>
-        `;
-      };
+  document.getElementById('overview-grid').innerHTML = `
+    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow flex flex-col justify-center items-center sm:items-start text-center sm:text-left">
+      <p class="text-[11px] text-slate-400 uppercase tracking-wide font-bold mb-1">Alliance Health</p>
+      <p class="text-2xl font-black ${healthColor}">${healthPct}%</p>
+      <span class="block text-[10px] text-slate-500 mt-1">${healthPct}% Compliant</span>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow flex flex-col justify-center items-center sm:items-start text-center sm:text-left">
+      <p class="text-[11px] text-slate-400 uppercase tracking-wide font-bold mb-1">Roster Capacity</p>
+      <p class="text-2xl font-black text-blue-400">${totalMembers} / 100</p>
+      <span class="block text-[10px] text-slate-500 mt-1">${capacitySubtext}</span>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow flex flex-col justify-center items-center sm:items-start text-center sm:text-left">
+      <p class="text-[11px] text-slate-400 uppercase tracking-wide font-bold mb-1">Total Power</p>
+      <p class="text-2xl font-black text-white">${formatSuffix(totalPower)}</p>
+      <span class="block text-[10px] text-slate-500 mt-1">Active Combat Power</span>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow flex flex-col justify-center items-center sm:items-start text-center sm:text-left">
+      <p class="text-[11px] text-slate-400 uppercase tracking-wide font-bold mb-1">Weekly VS Score</p>
+      <p class="text-2xl font-black text-purple-400">${formatSuffix(totalWeekly)}</p>
+      <span class="block text-[10px] text-slate-500 mt-1">Current Week Total</span>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow flex flex-col justify-center items-center sm:items-start text-center sm:text-left">
+      <p class="text-[11px] text-slate-400 uppercase tracking-wide font-bold mb-1">Alliance Donations</p>
+      <p class="text-2xl font-black text-amber-400">${formatSuffix(totalDonations)}</p>
+      <span class="block text-[10px] text-slate-500 mt-1">Alliance Tech Total</span>
+    </div>
+  `;
+}
 
-      document.getElementById('filter-grid').innerHTML = `
-        ${makeBox("🔥 Crushed It", counts.crushed, "text-amber-400", "border-amber-900/50", "[Crushed It!]")}
-        ${makeBox("🌟 Perfect", counts.perfect, "text-purple-400", "border-purple-900/50", "[Perfect]")}
-        ${makeBox("⬆️ Promoted", counts.promo, "text-emerald-400", "border-emerald-900/50", "[Promotion]")}
-        ${makeBox("🛡️ Maintained", counts.maint, "text-blue-400", "border-blue-900/50", "[Maintained]")}
-        ${makeBox("👋 New Member", counts.new, "text-blue-400", "border-blue-900/50", "[New Member]")}
-        ${makeBox("⏸️ Exempt", counts.exempt, "text-blue-400", "border-blue-900/50", "[Exempt]")}
-        ${makeBox("⚠️ Demotion", counts.demo, "text-red-400", "border-red-900/50", "[Demotion]")}
-        ${makeBox("⛔ Removal", counts.removal, "text-red-500", "border-red-900/50 border-b-2 border-b-red-600", "[Removal]")}
-      `;
-    }
+function setTagFilter(tag) {
+  if (currentTagFilter === tag) {
+    currentTagFilter = "";
+  } else {
+    currentTagFilter = tag;
+    document.getElementById('search-input').value = "";
+  }
+  renderFilterGrid();
+  filterRoster();
+}
 
-    function getTagStyle(reason) {
-      if (!reason) return "bg-slate-800 text-slate-300 border-slate-700";
-      if (reason.includes("[Crushed It!]")) return "bg-amber-900/40 text-amber-400 border-amber-700/50";
-      if (reason.includes("[Perfect]")) return "bg-purple-900/40 text-purple-400 border-purple-700/50";
-      if (reason.includes("[Promotion]")) return "bg-emerald-900/40 text-emerald-400 border-emerald-700/50";
-      if (reason.includes("[Maintained]")) return "bg-blue-900/30 text-blue-300 border-blue-800/50";
-      if (reason.includes("[New Member]")) return "bg-blue-900/30 text-blue-300 border-blue-800/50";
-      if (reason.includes("[Exempt]")) return "bg-blue-900/30 text-blue-300 border-blue-800/50";
-      if (reason.includes("[Demotion]")) return "bg-red-900/40 text-red-400 border-red-700/50";
-      if (reason.includes("[Removal]")) return "bg-red-950 text-red-500 border-red-800";
-      return "bg-slate-800 text-slate-300 border-slate-700";
-    }
+function clearFilters() {
+  currentTagFilter = "";
+  document.getElementById('search-input').value = "";
+  renderFilterGrid();
+  filterRoster();
+}
 
-    function getTextColor(reason) {
-      if (!reason) return "text-slate-300";
-      if (reason.includes("[Crushed It!]")) return "text-amber-400";
-      if (reason.includes("[Perfect]")) return "text-purple-400";
-      if (reason.includes("[Promotion]")) return "text-emerald-400";
-      if (reason.includes("[Maintained]")) return "text-blue-400";
-      if (reason.includes("[New Member]")) return "text-blue-400";
-      if (reason.includes("[Exempt]")) return "text-blue-400";
-      if (reason.includes("[Demotion]")) return "text-red-400";
-      if (reason.includes("[Removal]")) return "text-red-500";
-      return "text-slate-300";
-    }
+function renderFilterGrid() {
+  let counts = { crushed: 0, perfect: 0, promo: 0, maint: 0, new: 0, exempt: 0, demo: 0, removal: 0 };
+  rawMembers.forEach(m => {
+    const r = String(m.reason || "");
+    if (r.includes("[Crushed It!]")) counts.crushed++;
+    if (r.includes("[Perfect]")) counts.perfect++;
+    if (r.includes("[Promotion]")) counts.promo++;
+    if (r.includes("[Maintained]")) counts.maint++;
+    if (r.includes("[New Member]")) counts.new++;
+    if (r.includes("[Exempt]")) counts.exempt++;
+    if (r.includes("[Demotion]")) counts.demo++;
+    if (r.includes("[Removal]")) counts.removal++;
+  });
 
-    function renderTable(list) {
-      const container = document.getElementById('roster-container');
-      if (list.length === 0) return container.innerHTML = '<p class="text-slate-400 text-sm py-4">No data matches your filter or archive is empty.</p>';
-      
-      let rowsHtml = list.map(m => `
-        <tr onclick="toggleDetails('${m.id}')" class="border-b border-slate-800/80 hover:bg-slate-800/40 cursor-pointer transition-colors">
-          <td class="py-3 px-4 font-bold text-slate-300">${m.rank}</td>
-          <td class="py-3 px-4 font-semibold text-white">${m.name}</td>
-          <td class="py-3 px-4 text-right font-mono text-slate-300">${m.power}</td>
-          <td class="py-3 px-4 text-right font-mono ${getTextColor(m.reason)} font-semibold">${m.weekly}</td>
-          <td class="py-3 px-4 hidden sm:table-cell"><span class="px-2 py-0.5 rounded text-[11px] font-medium border ${getTagStyle(m.reason)}">${m.reason}</span></td>
-        </tr>
-        <tr id="details-${m.id}" class="hidden bg-slate-950 border-b border-slate-800">
-          <td colspan="5" class="p-4"><div class="text-xs text-slate-400">Mon: <span class="text-slate-200">${m.mon}</span> | Tue: <span class="text-slate-200">${m.tue}</span> | Wed: <span class="text-slate-200">${m.wed}</span> | Thu: <span class="text-slate-200">${m.thu}</span> | Fri: <span class="text-slate-200">${m.fri}</span> | Sat: <span class="text-slate-200">${m.sat}</span> | Donations: <span class="text-blue-300 font-semibold">${m.donations}</span> | New Target: <span class="text-white font-semibold">${m.newRank}</span></div></td>
-        </tr>
-      `).join('');
-      
-      container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-left text-xs sm:text-sm"><thead class="bg-slate-950 text-slate-400 uppercase text-[10px] sm:text-xs border-b border-slate-800"><tr><th class="py-3 px-4">Rank</th><th class="py-3 px-4">Member</th><th class="py-3 px-4 text-right">Power</th><th class="py-3 px-4 text-right">Weekly Duel</th><th class="py-3 px-4 hidden sm:table-cell">Audit Status</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
-    }
+  const makeBox = (label, value, textColor, borderColor, filterTag) => {
+    const isActive = currentTagFilter === filterTag;
+    const activeRing = isActive ? "ring-2 ring-white scale-105" : "hover:scale-[1.02]";
+    return `
+      <div onclick="setTagFilter('${filterTag}')" class="bg-slate-900 border ${borderColor} p-3 rounded-xl shadow cursor-pointer transition-all duration-150 ${activeRing}">
+        <div class="flex justify-between items-center">
+          <p class="text-xs font-bold text-slate-400">${label}</p>
+          <span class="text-lg font-black ${textColor}">${value}</span>
+        </div>
+      </div>
+    `;
+  };
 
-    function toggleDetails(id) { document.getElementById(`details-${id}`).classList.toggle('hidden'); }
+  document.getElementById('filter-grid').innerHTML = `
+    ${makeBox("🔥 Crushed It!", counts.crushed, "text-emerald-400", "border-emerald-800/60", "[Crushed It!]")}
+    ${makeBox("🌟 Perfect", counts.perfect, "text-emerald-400", "border-emerald-800/60", "[Perfect]")}
+    ${makeBox("⬆️ Promotions", counts.promo, "text-blue-400", "border-blue-800/60", "[Promotion]")}
+    ${makeBox("🛡️ Maintained", counts.maint, "text-blue-400", "border-blue-800/60", "[Maintained]")}
+    ${makeBox("🌱 New Members", counts.new, "text-blue-400", "border-blue-800/60", "[New Member]")}
+    ${makeBox("🏖️ Exempt", counts.exempt, "text-purple-400", "border-purple-800/60", "[Exempt]")}
+    ${makeBox("⚠️ Demotions", counts.demo, "text-amber-400", "border-amber-800/60", "[Demotion]")}
+    ${makeBox("🛑 Pending Removal", counts.removal, "text-red-400", "border-red-800/60", "[Removal]")}
+  `;
+}
+
+function getTagStyle(reason) {
+  if (!reason) return "bg-slate-800 text-slate-300 border-slate-700";
+  if (reason.includes("[Crushed It!]")) return "bg-emerald-950/80 text-emerald-300 border-emerald-600";
+  if (reason.includes("[Perfect]")) return "bg-emerald-950/60 text-emerald-400 border-emerald-700";
+  if (reason.includes("[Promotion]")) return "bg-blue-950/80 text-blue-300 border-blue-600";
+  if (reason.includes("[Maintained]")) return "bg-blue-950/40 text-blue-300 border-blue-800";
+  if (reason.includes("[New Member]")) return "bg-cyan-950/60 text-cyan-300 border-cyan-700";
+  if (reason.includes("[Exempt]")) return "bg-purple-950/60 text-purple-300 border-purple-700";
+  if (reason.includes("[Demotion]")) return "bg-amber-950/60 text-amber-300 border-amber-700";
+  if (reason.includes("[Removal]")) return "bg-red-950/80 text-red-300 border-red-600";
+  return "bg-slate-800 text-slate-300 border-slate-700";
+}
+
+function getTextColor(reason) {
+  if (!reason) return "text-slate-300";
+  if (reason.includes("[Crushed It!]")) return "text-emerald-400";
+  if (reason.includes("[Perfect]")) return "text-emerald-400";
+  if (reason.includes("[Promotion]")) return "text-blue-400";
+  if (reason.includes("[Maintained]")) return "text-blue-400";
+  if (reason.includes("[New Member]")) return "text-cyan-400";
+  if (reason.includes("[Exempt]")) return "text-purple-400";
+  if (reason.includes("[Demotion]")) return "text-amber-400";
+  if (reason.includes("[Removal]")) return "text-red-500";
+  return "text-slate-300";
+}
+
+function renderTable(list) {
+  const container = document.getElementById('roster-container');
+  if (list.length === 0) return container.innerHTML = '<p class="text-slate-400 text-sm py-4">No data matches your filter or archive is empty.</p>';
+
+  const formatShort = (n) => {
+    if (!n || n === 0 || n === "0" || n === "-") return "-";
+    let num = typeof n === "number" ? n : parseFloat(String(n).replace(/,/g, ""));
+    if (isNaN(num) || num === 0) return "-";
+    let isNeg = num < 0;
+    let abs = Math.abs(num);
+    let str = "";
+    if (abs >= 1000000000) str = (abs / 1000000000).toFixed(1) + "B";
+    else if (abs >= 1000000) str = (abs / 1000000).toFixed(1) + "M";
+    else if (abs >= 1000) str = Math.round(abs / 1000) + "k";
+    else str = abs.toString();
+    return (isNeg ? "-" : "") + str;
+  };
+
+  const getGrowthBadge = (hist, currentPowerStr) => {
+    if (!hist || !hist.powerStart) return '<span class="text-slate-500 text-xs">-</span>';
+    let curr = parseFloat(String(currentPowerStr).replace(/,/g, "")) || 0;
+    let start = parseFloat(String(hist.powerStart).replace(/,/g, "")) || 0;
+    let diff = curr - start;
+    if (isNaN(diff) || diff === 0) return '<span class="text-slate-400 text-xs">0</span>';
+    let sign = diff > 0 ? "+" : "";
+    let color = diff >= 0 ? "text-emerald-400" : "text-red-400";
+    return `<span class="${color} font-bold text-xs">${sign}${formatShort(diff)}</span>`;
+  };
+
+  let rowsHtml = list.map(m => {
+    let hist = m.history || null;
+    let avgVs = hist && hist.avgVsScore ? formatShort(hist.avgVsScore) : "-";
+    let weeksTracked = hist && hist.weeksTracked ? hist.weeksTracked : 1;
+    let relPct = hist && hist.reliabilityPct !== undefined ? hist.reliabilityPct + "%" : "100%";
+
+    // Standing Badge logic (Clean Standing vs Demoted vs Pending Removal)
+    let standingHtml = `<span class="px-2.5 py-1 bg-emerald-950/60 border border-emerald-800/60 text-emerald-400 text-xs font-semibold rounded-lg flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span>Clean Standing</span>`;
+    let reasonLower = (m.reason || "").toLowerCase();
     
-    function filterRoster() {
-      const q = document.getElementById('search-input').value.toLowerCase();
-      let filtered = rawMembers;
-
-      if (currentTagFilter) {
-        filtered = filtered.filter(m => (m.reason || "").includes(currentTagFilter));
-      }
-
-      if (q) {
-        filtered = filtered.filter(m => 
-          m.name.toLowerCase().includes(q) || 
-          m.rank.toLowerCase().includes(q) ||
-          (m.reason || "").toLowerCase().includes(q)
-        );
-      }
-
-      renderTable(filtered);
+    if (reasonLower.includes("[removal]")) {
+      standingHtml = `<span class="px-2.5 py-1 bg-red-950/70 border border-red-800/80 text-red-400 text-xs font-semibold rounded-lg flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>Pending Removal</span>`;
+    } else if (reasonLower.includes("[demotion]")) {
+      standingHtml = `<span class="px-2.5 py-1 bg-amber-950/60 border border-amber-800/80 text-amber-400 text-xs font-semibold rounded-lg flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span>Demoted</span>`;
     }
 
-    function showError(err) { document.getElementById('roster-container').innerHTML = `<p class="text-red-400 p-4">${err.message}</p>`; }
-    function showUploadStatus(msg, color) {
-      const box = document.getElementById('upload-status');
-      box.className = `mt-3 p-3 text-xs rounded-lg bg-${color}-950/60 border border-${color}-800 text-${color}-300 block`;
-      box.textContent = msg;
-    }
-  </script>
+    return `
+    <tr onclick="toggleDetails('${m.id}')" class="border-b border-slate-800/80 hover:bg-slate-800/40 cursor-pointer transition-colors">
+      <td class="py-3 px-4 font-bold text-slate-300">${m.rank}</td>
+      <td class="py-3 px-4 font-semibold text-white">${m.name}</td>
+      <td class="py-3 px-4 text-right font-mono text-slate-300">${m.power}</td>
+      <td class="py-3 px-4 text-right font-mono ${getTextColor(m.reason)} font-semibold">${m.weekly}</td>
+      <td class="py-3 px-4 hidden sm:table-cell"><span class="px-2 py-0.5 rounded text-[11px] font-medium border ${getTagStyle(m.reason)}">${m.reason}</span></td>
+    </tr>
+    <tr id="details-${m.id}" class="hidden bg-slate-950 border-b border-slate-800">
+      <td colspan="5" class="p-4 space-y-4">
+        <!-- Daily Targets Breakdown -->
+        <div>
+          <div class="flex justify-between items-center mb-2">
+            <p class="text-[10px] uppercase tracking-wider font-bold text-slate-400">📅 Daily Targets Breakdown (Goal: ≥ 3.6M VS / 3K Tech)</p>
+            <p class="text-[11px] uppercase tracking-wider font-bold text-slate-300">Calculated Target: <span class="text-emerald-400">${m.newRank}</span></p>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-7 gap-2 text-center text-xs">
+            <div class="bg-slate-900 border ${parseNum(m.mon)>=3600000?'border-emerald-800/60':'border-slate-800'} p-2 rounded flex flex-col justify-between"><span class="block text-[10px] text-slate-400 font-semibold">MON</span><span class="font-mono text-white font-semibold my-1">${formatShort(m.mon)}</span><span class="w-1.5 h-1.5 rounded-full ${parseNum(m.mon)>=3600000?'bg-emerald-400':'bg-slate-600'} mx-auto"></span></div>
+            <div class="bg-slate-900 border ${parseNum(m.tue)>=3600000?'border-emerald-800/60':'border-slate-800'} p-2 rounded flex flex-col justify-between"><span class="block text-[10px] text-slate-400 font-semibold">TUE</span><span class="font-mono text-white font-semibold my-1">${formatShort(m.tue)}</span><span class="w-1.5 h-1.5 rounded-full ${parseNum(m.tue)>=3600000?'bg-emerald-400':'bg-slate-600'} mx-auto"></span></div>
+            <div class="bg-slate-900 border ${parseNum(m.wed)>=3600000?'border-emerald-800/60':'border-slate-800'} p-2 rounded flex flex-col justify-between"><span class="block text-[10px] text-slate-400 font-semibold">WED</span><span class="font-mono text-white font-semibold my-1">${formatShort(m.wed)}</span><span class="w-1.5 h-1.5 rounded-full ${parseNum(m.wed)>=3600000?'bg-emerald-400':'bg-slate-600'} mx-auto"></span></div>
+            <div class="bg-slate-900 border ${parseNum(m.thu)>=3600000?'border-emerald-800/60':'border-slate-800'} p-2 rounded flex flex-col justify-between"><span class="block text-[10px] text-slate-400 font-semibold">THU</span><span class="font-mono text-white font-semibold my-1">${formatShort(m.thu)}</span><span class="w-1.5 h-1.5 rounded-full ${parseNum(m.thu)>=3600000?'bg-emerald-400':'bg-slate-600'} mx-auto"></span></div>
+            <div class="bg-slate-900 border ${parseNum(m.fri)>=3600000?'border-emerald-800/60':'border-slate-800'} p-2 rounded flex flex-col justify-between"><span class="block text-[10px] text-slate-400 font-semibold">FRI</span><span class="font-mono text-white font-semibold my-1">${formatShort(m.fri)}</span><span class="w-1.5 h-1.5 rounded-full ${parseNum(m.fri)>=3600000?'bg-emerald-400':'bg-slate-600'} mx-auto"></span></div>
+            <div class="bg-slate-900 border ${parseNum(m.sat)>=3600000?'border-emerald-800/60':'border-slate-800'} p-2 rounded flex flex-col justify-between"><span class="block text-[10px] text-slate-400 font-semibold">SAT</span><span class="font-mono text-white font-semibold my-1">${formatShort(m.sat)}</span><span class="w-1.5 h-1.5 rounded-full ${parseNum(m.sat)>=3600000?'bg-emerald-400':'bg-slate-600'} mx-auto"></span></div>
+            <div class="bg-slate-900 border ${parseNum(m.donations)>=3000?'border-blue-800/60':'border-slate-800'} p-2 rounded flex flex-col justify-between"><span class="block text-[10px] text-blue-400 font-semibold">DONATIONS</span><span class="font-mono text-blue-300 font-bold my-1">${formatShort(m.donations)}</span><span class="w-1.5 h-1.5 rounded-full ${parseNum(m.donations)>=3000?'bg-blue-400':'bg-slate-600'} mx-auto"></span></div>
+          </div>
+        </div>
+
+        <!-- Multi-Week Performance & Historical Standing Card -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-lg p-3 space-y-3">
+          <div class="flex justify-between items-center">
+            <p class="text-[10px] uppercase tracking-wider font-bold text-slate-400">📊 Multi-Week Performance & Historical Standing</p>
+            <div>${standingHtml}</div>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div class="bg-slate-950/80 border border-slate-800/80 p-3 rounded-lg flex flex-col justify-center">
+              <span class="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">Power Trajectory</span>
+              <span class="text-sm font-black text-white">${getGrowthBadge(hist, m.power)}</span>
+            </div>
+            <div class="bg-slate-950/80 border border-slate-800/80 p-3 rounded-lg flex flex-col justify-center">
+              <span class="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">Career Avg Weekly VS</span>
+              <span class="text-sm font-black text-purple-300 font-mono">${avgVs}</span>
+            </div>
+            <div class="bg-slate-950/80 border border-slate-800/80 p-3 rounded-lg flex flex-col justify-center">
+              <span class="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">Reliability Rate</span>
+              <span class="text-sm font-black text-emerald-400 font-mono">${relPct}</span>
+            </div>
+            <div class="bg-slate-950/80 border border-slate-800/80 p-3 rounded-lg flex flex-col justify-center">
+              <span class="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">Weeks Tracked</span>
+              <span class="text-sm font-black text-slate-200">${weeksTracked} wk(s) logged</span>
+            </div>
+          </div>
+        </div>
+      </td>
+    </tr>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-xs sm:text-sm">
+        <thead class="bg-slate-950 text-slate-400 uppercase text-[10px] sm:text-xs border-b border-slate-800">
+          <tr>
+            <th class="py-3 px-4">Rank</th>
+            <th class="py-3 px-4">Member</th>
+            <th class="py-3 px-4 text-right">Power</th>
+            <th class="py-3 px-4 text-right">Weekly Duel</th>
+            <th class="py-3 px-4 hidden sm:table-cell">Audit Status</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function parseNum(val) {
+  if (!val) return 0;
+  if (typeof val === "number") return val;
+  let n = parseFloat(String(val).replace(/[^0-9.-]+/g, ""));
+  return isNaN(n) ? 0 : n;
+}
+
+function toggleDetails(id) {
+  const row = document.getElementById(`details-${id}`);
+  if (row) row.classList.toggle('hidden');
+}
+
+function filterRoster() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  let filtered = rawMembers;
+
+  if (currentTagFilter) {
+    filtered = filtered.filter(m => (m.reason || "").includes(currentTagFilter));
+  }
+
+  if (q) {
+    filtered = filtered.filter(m =>
+      m.name.toLowerCase().includes(q) ||
+      m.rank.toLowerCase().includes(q) ||
+      (m.reason || "").toLowerCase().includes(q)
+    );
+  }
+
+  renderTable(filtered);
+}
+
+function showError(err) {
+  document.getElementById('roster-container').innerHTML = `<p class="text-red-400 p-4">${err.message}</p>`;
+}
+
+function showUploadStatus(msg, color) {
+  const box = document.getElementById('upload-status');
+  box.className = `mt-3 p-3 text-xs rounded-lg bg-${color}-950/60 border border-${color}-800 text-${color}-300 block`;
+  box.textContent = msg;
+}
+</script>
 </body>
 </html>
