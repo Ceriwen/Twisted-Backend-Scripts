@@ -665,3 +665,42 @@ function handleDropdownRestoration(choice) {
   });
   SpreadsheetApp.getUi().alert("Restoration Complete", `Restored ${restored} file(s).`, SpreadsheetApp.getUi().ButtonSet.OK);
 }
+
+/**
+ * Scans the main Inbox folder, classifies unorganized screenshots using Gemini OCR, 
+ * and routes them into their respective category folders.
+ */
+function sortAndProcessInboxFolder() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let debugSheet = ss.getSheetByName("Debug Log") || ss.insertSheet("Debug Log");
+
+  if (!CONFIG.INBOX_FOLDER_ID || CONFIG.INBOX_FOLDER_ID.startsWith("YOUR_")) {
+    throw new Error("INBOX_FOLDER_ID is not configured in Config.gs.");
+  }
+
+  let inboxFolder = DriveApp.getFolderById(CONFIG.INBOX_FOLDER_ID);
+  let files = inboxFolder.getFiles();
+  let processedCount = 0;
+
+  while (files.hasNext()) {
+    let f = files.next();
+    let mime = f.getMimeType();
+    if (mime.includes("image") || mime.includes("octet-stream") || f.getName().toLowerCase().endsWith(".jpg") || f.getName().toLowerCase().endsWith(".png")) {
+      try {
+        let category = classifyScreenshotWithGemini(f);
+        let targetFolderId = CONFIG.FOLDER_MAPPINGS[category];
+        if (targetFolderId && !targetFolderId.startsWith("YOUR_")) {
+          let targetFolder = DriveApp.getFolderById(targetFolderId);
+          f.moveTo(targetFolder);
+          processedCount++;
+          debugSheet.appendRow([new Date(), `Routed inbox file "${f.getName()}" to category: ${category}`]);
+        }
+      } catch (err) {
+        debugSheet.appendRow([new Date(), `⚠️ Failed to classify "${f.getName()}": ${err.message}`]);
+      }
+    }
+  }
+
+  ss.toast(`Successfully sorted ${processedCount} screenshot(s) from inbox.`, "📥 Inbox Sorted", 5);
+  return { success: true, count: processedCount };
+}
