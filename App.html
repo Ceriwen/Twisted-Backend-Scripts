@@ -317,8 +317,6 @@ function renderOverview() {
   let totalDonations = 0;
   let totalPower = 0;
 
-  const parseNum = (val) => parseFloat(String(val).replace(/[^0-9.-]+/g, "")) || 0;
-
   rawMembers.forEach(m => {
     const r = String(m.reason || "");
     if (!r.includes("[Demotion]") && !r.includes("[Removal]")) {
@@ -471,31 +469,61 @@ function renderTable(list) {
   };
 
   const getGrowthBadge = (hist, currentPowerStr) => {
-    if (!hist || !hist.powerStart) return '<span class="text-slate-500 text-xs">-</span>';
     let curr = parseFloat(String(currentPowerStr).replace(/,/g, "")) || 0;
-    let start = parseFloat(String(hist.powerStart).replace(/,/g, "")) || 0;
+    let start = hist && hist.powerStart ? (parseFloat(String(hist.powerStart).replace(/,/g, "")) || 0) : 0;
+    if (curr === 0 || start === 0) return '<span class="text-slate-400 text-xs">+0.0M</span>';
     let diff = curr - start;
-    if (isNaN(diff) || diff === 0) return '<span class="text-slate-400 text-xs">0</span>';
+    if (isNaN(diff) || Math.abs(diff) < 1000) return '<span class="text-emerald-400 font-bold text-xs">+0.0M</span>';
     let sign = diff > 0 ? "+" : "";
     let color = diff >= 0 ? "text-emerald-400" : "text-red-400";
     return `<span class="${color} font-bold text-xs">${sign}${formatShort(diff)}</span>`;
   };
 
   let rowsHtml = list.map(m => {
-    let hist = m.history || null;
-    let avgVs = hist && hist.avgVsScore ? formatShort(hist.avgVsScore) : "-";
-    let weeksTracked = hist && hist.weeksTracked ? hist.weeksTracked : 1;
-    let relPct = hist && hist.reliabilityPct !== undefined ? hist.reliabilityPct + "%" : "100%";
+    let hist = m.history || {};
+    let demotions = typeof hist.demotions === 'number' ? hist.demotions : 0;
+    let removalCount = typeof hist.removalCount === 'number' ? hist.removalCount : 0;
+    let removalStreak = typeof hist.removalStreak === 'number' ? hist.removalStreak : 0;
+    let avgVs = hist.avgVsScore ? formatShort(hist.avgVsScore) : formatShort(m.weekly);
+    let weeksTracked = hist.weeksTracked ? hist.weeksTracked : 1;
+    let relPct = hist.reliabilityPct !== undefined ? hist.reliabilityPct + "%" : "100%";
 
-    // Standing Badge logic (Clean Standing vs Demoted vs Pending Removal)
-    let standingHtml = `<span class="px-2.5 py-1 bg-emerald-950/60 border border-emerald-800/60 text-emerald-400 text-xs font-semibold rounded-lg flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span>Clean Standing</span>`;
     let reasonLower = (m.reason || "").toLowerCase();
-    
-    if (reasonLower.includes("[removal]")) {
-      standingHtml = `<span class="px-2.5 py-1 bg-red-950/70 border border-red-800/80 text-red-400 text-xs font-semibold rounded-lg flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>Pending Removal</span>`;
-    } else if (reasonLower.includes("[demotion]")) {
-      standingHtml = `<span class="px-2.5 py-1 bg-amber-950/60 border border-amber-800/80 text-amber-400 text-xs font-semibold rounded-lg flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span>Demoted</span>`;
+    let curRankUpper = (m.rank || "").toUpperCase();
+    let newRankUpper = (m.newRank || "").toUpperCase();
+
+    if (reasonLower.includes("restored to r3") && demotions === 0) {
+      demotions = 1;
     }
+
+    // Build the Standing & Strike Badges at the top right of the drawer
+    let badgePills = [];
+    let isCurrentlyOnRemoval = reasonLower.includes("[removal]") || curRankUpper === "R1" || removalStreak > 0;
+    let totalRemWks = Math.max(removalStreak, removalCount, reasonLower.includes("[removal]") ? 1 : 0);
+
+    if (totalRemWks > 0) {
+      let wkWord = totalRemWks === 1 ? "Week" : "Weeks";
+      if (isCurrentlyOnRemoval && !reasonLower.includes("restored to r3") && newRankUpper !== "R3") {
+        // Active on the removal list
+        badgePills.push(`<span class="px-2.5 py-1 bg-red-950/80 border border-red-700 text-red-300 text-xs font-bold rounded-lg flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>⛔ Pending Removal: ${totalRemWks} ${wkWord}</span>`);
+      } else {
+        // Was on removal list previously, but got another chance / promoted back to R3
+        let shortWk = totalRemWks === 1 ? "1 Wk" : `${totalRemWks} Wks`;
+        badgePills.push(`<span class="px-2.5 py-1 bg-slate-900 border border-red-800/70 text-red-300/90 text-xs font-semibold rounded-lg flex items-center gap-1.5">⛔ Removal: ${shortWk} (Prior)</span>`);
+      }
+    }
+
+    if (demotions > 0 || reasonLower.includes("[demotion]")) {
+      let demToShow = Math.max(1, demotions);
+      badgePills.push(`<span class="px-2.5 py-1 bg-amber-950/80 border border-amber-700 text-amber-300 text-xs font-bold rounded-lg flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span>⚠️ Demotions: ${demToShow}x</span>`);
+    }
+
+    if (badgePills.length === 0) {
+      badgePills.push(`<span class="px-2.5 py-1 bg-emerald-950/60 border border-emerald-800/60 text-emerald-400 text-xs font-semibold rounded-lg flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span>🛡️ Clean Standing</span>`);
+    }
+
+    let standingHtml = `<div class="flex flex-wrap items-center gap-2">${badgePills.join('')}</div>`;
+    let relColor = (parseInt(relPct) >= 80) ? "text-emerald-400" : ((parseInt(relPct) >= 50) ? "text-amber-400" : "text-red-400");
 
     return `
     <tr onclick="toggleDetails('${m.id}')" class="border-b border-slate-800/80 hover:bg-slate-800/40 cursor-pointer transition-colors">
@@ -526,9 +554,9 @@ function renderTable(list) {
 
         <!-- Multi-Week Performance & Historical Standing Card -->
         <div class="bg-slate-900/80 border border-slate-800 rounded-lg p-3 space-y-3">
-          <div class="flex justify-between items-center">
+          <div class="flex flex-wrap justify-between items-center gap-2">
             <p class="text-[10px] uppercase tracking-wider font-bold text-slate-400">📊 Multi-Week Performance & Historical Standing</p>
-            <div>${standingHtml}</div>
+            ${standingHtml}
           </div>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             <div class="bg-slate-950/80 border border-slate-800/80 p-3 rounded-lg flex flex-col justify-center">
@@ -541,7 +569,7 @@ function renderTable(list) {
             </div>
             <div class="bg-slate-950/80 border border-slate-800/80 p-3 rounded-lg flex flex-col justify-center">
               <span class="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">Reliability Rate</span>
-              <span class="text-sm font-black text-emerald-400 font-mono">${relPct}</span>
+              <span class="text-sm font-black ${relColor} font-mono">${relPct}</span>
             </div>
             <div class="bg-slate-950/80 border border-slate-800/80 p-3 rounded-lg flex flex-col justify-center">
               <span class="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">Weeks Tracked</span>
