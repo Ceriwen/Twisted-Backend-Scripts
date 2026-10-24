@@ -169,7 +169,7 @@ function clearAllHighlightsAndNotes() {
 
       // Preserve Strike notes and Exemption notes
       if (noteStr) {
-        let isStrike = noteStr.includes("⚠️ Pending Removal") || noteStr.includes("⚠️ Demoted Last Week");
+      let isStrike = noteStr.includes("⚠️ Pending Removal") || noteStr.includes("⚠️ Demoted Last Week") || noteStr.includes("⚠️ New Member");
         let isExempt = isExemptNote(noteStr);
 
         if (!isStrike && !isExempt) {
