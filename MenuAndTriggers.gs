@@ -104,7 +104,7 @@ function disableAutoImportWatcher() {
 
 /**
  * Composite Nightly Maintenance Trigger.
- * Runs rank recalculations, refreshes the Discord live card, and pushes full codebase sync to GitHub & Drive.
+ * Runs rank recalculations, refreshes Discord live card, and syncs code to GitHub & Drive.
  */
 function executeNightlyMaintenance() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -178,48 +178,49 @@ function onOpen() {
   } catch (e) {}
 
   SpreadsheetApp.getUi().createMenu('🌪️ TWST Tools')
-    .addSubMenu(SpreadsheetApp.getUi().createMenu('📥 Process Imports')
-      .addItem('📥 Sort Inbox', 'sortAndProcessInboxFolder')
-      .addSeparator()
+    .addItem('⏱️ Toggle Auto Watcher', 'toggleAutoImportWatcher')
+    .addItem('📋 Open Audit Sidebar', 'openAuditSidebarFromMenu')
+    .addItem('📥 Sort & Process Folders', 'sortAndProcessInboxFolder')
+    .addItem('🔄 Sync Ranks, Discord & Code', 'executeNightlyMaintenance')
+    .addItem('🧹 Clear Highlights & Notes', 'clearAllHighlightsAndNotes')
+    .addItem('📅 Run Sunday Reset', 'executeSundayEowReset')
+    .addSeparator()
+    .addSubMenu(SpreadsheetApp.getUi().createMenu('🐞 Debugging Imports')
       .addItem('🚀 Process Next Folder', 'processNextAvailableFolder')
       .addSeparator()
-      .addSubMenu(SpreadsheetApp.getUi().createMenu('📂 Manual Single Imports')
-        .addItem('📸 Import Strength Ranking - Power & Ranks', 'importPowerRankingWithRanks')
-        .addItem('📸 Import Strength Ranking - Power Only', 'importPowerRankingOnly')
-        .addItem('💰 Import Strength Ranking - Donations', 'importDonationsRanking')
-        .addSeparator()
-        .addItem('Monday Only', 'importMonOnly')
-        .addItem('Tuesday Only', 'importTueOnly')
-        .addItem('Wednesday Only', 'importWedOnly')
-        .addItem('Thursday Only', 'importThuOnly')
-        .addItem('Friday Only', 'importFriOnly')
-        .addItem('Saturday Only', 'importSatOnly')
+      .addItem('📥 Strength: Power & Ranks', 'importPowerRankingWithRanks')
+      .addItem('📥 Strength: Power Only', 'importPowerRankingOnly')
+      .addItem('📥 Strength: Donations', 'importDonationsRanking')
+      .addSeparator()
+      .addSubMenu(SpreadsheetApp.getUi().createMenu('📅 Daily VS Days')
+        .addItem('📥 Monday VS', 'importMonOnly')
+        .addItem('📥 Tuesday VS', 'importTueOnly')
+        .addItem('📥 Wednesday VS', 'importWedOnly')
+        .addItem('📥 Thursday VS', 'importThuOnly')
+        .addItem('📥 Friday VS', 'importFriOnly')
+        .addItem('📥 Saturday VS', 'importSatOnly')
+      )
+      .addSubMenu(SpreadsheetApp.getUi().createMenu('↩️ Rollback & Restore')
+        .addItem('↩️ Rollback Last Import', 'rollbackLastImport')
+        .addItem('↩️ Restore Screenshots', 'restoreProcessedScreenshots')
+        .addItem('🗑️ Empty Processed Folders', 'emptyProcessedFolders')
       )
     )
-    .addSeparator()
-    .addSubMenu(SpreadsheetApp.getUi().createMenu('⏱️ Auto-Import Watcher')
-      .addItem('⏱️ Toggle Auto-Import Watcher', 'toggleAutoImportWatcher')
-    )
-    .addSeparator()
-    .addItem('🧹 Clear Table Highlights & Notes', 'clearAllHighlightsAndNotes')
-    .addItem('🔮 Calculate Weekly Rank Adjustments', 'calculateWeeklyRankAdjustments')
-    .addItem('📢 Send/Update Discord Live Card', 'updateLiveDiscordDashboard')
-    .addItem('📅 Run Sunday End-of-Week Reset', 'executeSundayEowReset')
-    .addSeparator()
-    .addSubMenu(SpreadsheetApp.getUi().createMenu('🐞 Debug & Cloud')
-      .addItem('🔍 Backfill Strike Notes from Archives', 'backfillStrikeNotesFromArchives')
+
+    // ==========================================
+    // SUBMENU 2: System, Logs & Cloud Tools
+    // ==========================================
+    .addSubMenu(SpreadsheetApp.getUi().createMenu('🛠️ System Maintenance')
+      .addItem('🧮 Calculate Weekly Rank Adjustments', 'calculateWeeklyRankAdjustments')
+      .addItem('🔄 Update Rank with New Rank', 'menuUpdateRankWithNewRank')
+      .addItem('📋 Show Debug Snippet', 'showDebugSnippet')
       .addSeparator()
-      .addItem('🌙 Run Nightly Maintenance Now', 'executeNightlyMaintenance')
-      .addItem('⚙️ Install Midnight Auto-Trigger', 'installNightlyMaintenanceTrigger')
+      .addItem('☁️ Send/Update Discord Live Card', 'updateLiveDiscordDashboard')
+      .addItem('☁️ Sync Code to GitHub & Drive', 'syncProjectToGitHub')
       .addSeparator()
-      .addItem('↩️ Rollback Last Import & Restore Screenshots', 'rollbackLastImport')
-      .addItem('🔄 Restore Processed Screenshots', 'restoreProcessedScreenshots')
-      .addItem('🗑️ Empty Processed Folders', 'emptyProcessedFolders')
-      .addItem('🔄 Update Rank with New Rank (Active Sheet)', 'menuUpdateRankWithNewRank')
-      .addItem('🐞 Clear Debug Log', 'clearDebugLogSheet')
-      .addItem('📋 Show Debug Log Snippet', 'showDebugSnippet')
-      .addSeparator()
-      .addItem('🔄 Sync Code to GitHub & Drive', 'syncProjectToGitHub')
+      .addItem('🧹 Clear Audit History', 'clearImportAuditLog')
+      .addItem('🧹 Clear Debug Log', 'clearDebugLogSheet')
+      
     )
     .addToUi();
 }
@@ -235,6 +236,7 @@ function mobileMenuHandler(e) {
   const row = e.range.getRow();
   const col = e.range.getColumn();
 
+  // Cell D1 is Row 1, Column 4
   if (row === 1 && col === 4) {
     let val = String(e.range.getValue() || "").trim();
     if (!val || val === "⚙️ Select Action...") return;
@@ -242,24 +244,18 @@ function mobileMenuHandler(e) {
     updateQueueVisualStatus(`⚡ Running: ${val}...`, "#fff2cc");
 
     try {
-      if (val === "📥 Sort & Process Inbox") {
+      if (val === "⏱️ Toggle Auto Watcher") {
+        toggleAutoImportWatcher();
+      } else if (val === "📋 Open Audit Sidebar") {
+        openAuditSidebarFromMenu();
+      } else if (val === "📥 Sort & Process Folders") {
         sortAndProcessInboxFolder();
-      } else if (val === "🚀 Process Next Folder") {
-        processNextAvailableFolder();
+      } else if (val === "🔄 Sync Ranks, Discord & Code") {
+        executeNightlyMaintenance();
       } else if (val === "🧹 Clear Highlights & Notes") {
         if (typeof clearAllHighlightsAndNotes === "function") clearAllHighlightsAndNotes();
-      } else if (val === "🔮 Calculate Weekly Ranks") {
-        if (typeof calculateWeeklyRankAdjustments === "function") calculateWeeklyRankAdjustments();
-      } else if (val === "📢 Update Discord Live Card") {
-        if (typeof updateLiveDiscordDashboard === "function") updateLiveDiscordDashboard();
       } else if (val === "📅 Run Sunday Reset") {
         if (typeof executeSundayEowReset === "function") executeSundayEowReset();
-      } else if (val === "⏱️ Toggle Auto Watcher") {
-        toggleAutoImportWatcher();
-      } else if (val === "🌙 Run Nightly Maintenance") {
-        executeNightlyMaintenance();
-      } else if (val === "🔄 Sync Code to GitHub") {
-        if (typeof syncProjectToGitHub === "function") syncProjectToGitHub();
       }
     } catch (err) {
       updateQueueVisualStatus(`❌ Error: ${err.message}`, "#f4cccc");
