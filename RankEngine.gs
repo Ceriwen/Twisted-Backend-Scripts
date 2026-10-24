@@ -337,7 +337,7 @@ function executeSundayEowReset() {
     // 1. Clean prior demotion line if present (give clean slate for new week)
     let cleanNote = currentNote
       .split("\n")
-      .filter(line => !line.includes("⚠️ Demoted Last Week"))
+      .filter(line => !line.includes("⚠️ Demoted Last Week") && !line.includes("⚠️ New Member"))
       .join("\n")
       .trim();
 
